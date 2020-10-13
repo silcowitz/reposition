@@ -1,0 +1,114 @@
+\documentclass[11pt]{article}
+    \title{\textbf{qable, chain distance constraint solver}}
+    \author{Morten Silcowitz}
+    \date{}
+    
+    \addtolength{\topmargin}{-3cm}
+    \addtolength{\textheight}{3cm}
+
+\usepackage{amsmath}
+\newcommand*{\vv}[1]{\mathbf{#1}}
+\renewcommand{\familydefault}{\sfdefault}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+
+\section{Math}
+
+\begin{align*}
+\min_{\vv x} \quad &  \vv{(x-p)}^{\text T} \vv M \vv {(x-p)} \\
+\textrm{s.t} \quad & \vv x^{\text T}\vv B \vv x = 1 \\
+\end{align*}
+
+$\vv B$ is the difference matrix. We can decompose $\vv B$ into its eigen decomposition $\vv R^{\text T}\vv D\vv R$
+
+\begin{align*}
+\min_{\vv x} \quad &  \vv{(x-p)}^{\text T} \vv M \vv {(x-p)} \\
+\textrm{s.t} \quad & \vv x^{\text T}\vv R^{\text T}\vv D\vv R \vv x = 1 \\
+\end{align*}
+
+introducing a new constraint $\vv z = \vv R \vv x$ we get
+
+\begin{align*}
+\min_{\vv x_1} \quad &  \vv{(x_1-x_0)}^{\text T} \vv M \vv {(x_1-x_0)} \\
+\textrm{s.t} \quad & \vv z^{\text T}\vv D\vv z = 1 \\
+& \vv z = \vv R \vv x_1
+\end{align*}
+
+
+Ignoring the quadratic constraint for a while, we can solve the system without it, by using its Lagrangian function:
+
+\begin{align*}
+\vv L(\vv x_1,\vv\lambda) = \quad &  \vv{(x_1-x_0)}^{\text T} \vv M \vv {(x_1-x_0)}  + \vv \lambda^{\text T}(\vv R\vv x_1 - \vv z)\\
+\end{align*}
+
+For $\vv x_1$ to be at a stationary point of L, we have to following conditions
+
+\begin{align*}
+\vv M \vv x_1 - \vv M \vv x_0 + \vv R^{\text T}\vv \lambda = \vv 0 \\ 
+\vv z = \vv R \vv x_1
+\end{align*}
+
+solving for $\vv\lambda$  get us
+
+\begin{align*}
+\vv \lambda = {\underbrace{(\vv R \vv M^{-1} \vv R)}_{\vv S}}^{-1} (\vv {R x_0 - z}) \\ 
+\end{align*}
+
+which gets us an expression for $\vv x_1$
+
+\begin{align*}
+\vv x_1 = \vv x_0 - \vv M^{-1} \vv R^{\text T} \vv S^{-1} (\vv {R x_0 - z}) \\ 
+\end{align*}
+
+\section{Projecting Quadratic Constraints}
+To easily project variables on to the permiseble region, we reformulate them so that each constraint becomes decoubled from all other constraints, and so that any individual constraint can be projected using a closed form solution
+
+\begin{align*}
+\frac{1}{2}\vv x_1^{\text T}\vv B_i \vv x_1 + \vv c_i^{\text T} \vv x_1 + k_i = 0 \quad \text{ for all $i$}
+\end{align*}
+
+where $i$ denotes each constraint. $\vv B_i$ is a symetric matrix (or it can be converted into one without changing the function). Given some initial $\vv x_k$ projecting means finding an $\vv x_1$ that satisfies () and minimizes $\|\vv x_1-\vv x_k \|^2$, which is generally not a trivial problem to solve. Worse, since $\vv x_1$ appears in all constraints, it's not possible to project any single constraint, without invalidating the others. 
+
+ Our strategy is to introduce new variables so that projecting/relaxing constraints becomes decoupled and as simple as possible.
+ 
+ Eventually we will eliminate $\vv x_1$ and only work on the new auxiliary variables, but more on that later. 
+ 
+\subsection{Auxiliary variables $\vv z$}
+
+Since $\vv B$ is symmetric, it has real eigenvalues and a coresponding eigenvalue decomposition $\vv R^{T}\vv D\vv R$. The eigenvalues in $\vv D$ can be grouped into positive ($\vv z_p$), negative ($\vv z_n$) and zero eighenvalues. Since the eigenvectors associated with zero eigenvalues doesn't affect the value of (), we can discard them all together. We then introduce the following definitions:
+\begin{align*}
+\vv p  &= \vv D_p^{\frac{1}{2}}\vv R_p \vv x_1 \\
+\vv u  &= | \vv D_n |^{\frac{1}{2}}\vv R_n \vv x_1 \\
+ s &= \vv c^{\text T}\vv x_1
+\end{align*}
+where $\vv p$, $\vv u$, and $s$ are all simply components of the vector $\vv z$. This brings the projection problem to the form
+\begin{align}
+\min_{\vv z} \quad  & \| \vv z - \vv z_0 \|^2 \nonumber \\ 
+\text{s.t} \quad & {\vv p}^{\text T}\vv p - {\vv u}^{\text T}\vv u + s + k = 0  \label{eqqc}
+\end{align}
+Using the optimality conditions for this problem, we can obtain expresions for the individual variables:
+\begin{align*}
+2\vv p - 2\vv p_0 + 2\vv p\lambda = \vv 0 \quad \Rightarrow & \quad \vv p = \frac{1}{(1+\lambda)}\vv p_0  \\
+2\vv u - 2\vv u_0 - 2\vv u\lambda = \vv 0 \quad \Rightarrow & \quad \vv u = \frac{1}{(1-\lambda)}\vv u_0  \\
+2s - 2s_0 + \lambda = 0 \quad \Rightarrow & \quad s = s_0 - \frac{1}{2}\lambda
+\end{align*}
+To solve for $\lambda$, we plug these into (\ref{eqqc}) to obtain the polynomial equation
+\begin{align}
+{\vv p_0}^{\text T}\vv p_0 (1+\lambda)^{-2} - {\vv u_0}^{\text T}\vv u_0 (1-\lambda)^{-2} + s0 - \frac{1}{2}\lambda+k = 0
+\end{align}
+This polynomial can be simplified to the form 
+
+
+
+
+\subsection{Eliminating $\vv x_1$}
+
+
+
+
+\end{document}
+
