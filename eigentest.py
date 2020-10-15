@@ -28,12 +28,14 @@ print(np.linalg.eigh(S))
 Si = np.linalg.pinv(S)
 
 #lawekjf
-z = np.random.randn(6,1)*0.0001
+z = np.random.randn(6,1)*1.0
 
-for t in range(11145):
+for t in range(int(9e9)):
     z0 = z.copy()
-    g_z = Si.dot(z)
-    z = z-(1/(t*1+1))*g_z
+
+
+    g_z = 2*Si.dot(z)
+    z = z-(1.0/(t+1.0))*g_z
 
     # project
     p = np.linalg.norm(z[0:4])
@@ -43,12 +45,23 @@ for t in range(11145):
         lamb = 1.0/lamb
 
     #print(lamb)
+    if (lamb*lamb != 1):
+        z[0:4] *= 1.0/(1.0+lamb)
+        z[4] *= 1.0/(1.0-lamb)
 
-    z[0:4] *= 1.0/(1.0+lamb)
-    z[4] *= 1.0/(1.0-lamb)
-    z[5] = 1.0
+    z[5] = 1
 
-    #print((z-z0).T.dot(z-z0))
+
+    #project out of nullspace
+    v = (z[4] + z[5])*.5
+    z[4] = v
+    z[5] = v
+
+
+    e = float((z-z0).T.dot(z-z0))
+    if e<1e-14 or t>2256:
+        print('terminate at %d with error %.12f' % (t,e))
+        break
 
 
     #print(z[0:4].T.dot(z[0:4]) - z[4]*z[4] )
@@ -60,11 +73,11 @@ for t in range(11145):
 #u - lamb u= u0
 #(I-lambI)u = u0
 print(z[0:6])
-s = R.T.dot(Si.dot(z))
+s = -np.linalg.inv(M2).dot( R.T.dot(-Si.dot(z)))
 print(s)
 
 v = s[0:4]
 print(np.linalg.norm(v))
 print(v/np.linalg.norm(v))
-print(s / np.linalg.norm(v))
+#print(s / np.linalg.norm(v))
 
