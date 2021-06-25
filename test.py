@@ -6,7 +6,7 @@ import time
 from scipy.linalg import null_space
 from scipy.sparse.linalg import cg
 
-np.set_printoptions(precision=2,linewidth=1260)
+np.set_printoptions(precision=2,linewidth=1260,threshold=sys.maxsize)
 
 def solve_newton( m, pi, lamb, maxiter ):
     P = len(m)
@@ -73,7 +73,8 @@ def solve_newton( m, pi, lamb, maxiter ):
             lamb[j] /= f
             lamb_sum += lamb[j]
             Q[j,j*3:(j+1)*3] = z[j*3:(j+1)*3].T * 1
-            D[ j*3:(j+1)*3] = lamb[j] if lamb[j] > 0 else 0
+            #D[ j*3:(j+1)*3] = lamb[j] if lamb[j] > 0 else 0
+            D[ j*3:(j+1)*3] = abs(lamb[j]) # if lamb[j] > 0 else 0
 
 
         if False:
@@ -93,7 +94,7 @@ def solve_newton( m, pi, lamb, maxiter ):
         D2 = np.diag(np.ones_like(D))*(lamb_sum/L)
         #print(D2)
         #print(np.diag(D))
-        Sp = np.linalg.inv(Si+np.diag(D)*1+D2*0)
+        Sp = np.linalg.inv(Si+np.diag(D)*0+D2*1)
         #Spdd = np.linalg.inv(Si+np.diag(D)*0+D2*1)
 
 
@@ -136,18 +137,18 @@ def solve_newton( m, pi, lamb, maxiter ):
 
         #s = np.linalg.pinv(A).dot(b)
 
-        if True:
+        if False:
             qq,it = cg( Q.dot(Sp).dot(Q.T), Q.dot(Sp.dot(b_z))-b_lamb, M=np.linalg.inv(Q.dot(Spdd).dot(Q.T)), tol=1e-14, maxiter=15,callback = lambda x: print('iter2,',end='') )
             #s,it = cg( A, b, tol=1e-14, maxiter=15,callback = lambda x: print('iter') )
         #print("qq=")
         #print(qq)
 
-        if True:
+        if False:
             s,it = cg( A, b, tol=1e-14, maxiter=15, M = P,callback = lambda x: print('iter,',end='') )
             #s,it = cg( A, b, tol=1e-14, maxiter=15,callback = lambda x: print('iter') )
             s = s.reshape(-1,1)
 
-        #s = P.dot(b)
+        s = P.dot(b)
 
         #print(np.linalg.inv(A))
         #print(s)
@@ -508,7 +509,7 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
     lamb = np.zeros([L,1])
 
     if not pre_lamb is None:
-        lamb = pre_lamb
+        lamb = pre_lamb*0
 
     D = np.zeros([L*3])
     Q= np.zeros([L,L*3])
@@ -536,6 +537,8 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
 
 
     RRi = np.linalg.inv(RR)
+    #L2 = scipy.linalg.cholesky(RR)
+    #print(L2 )
     c = RRi.dot(R.dot(p))
     #print(z)
     for i in range(maxiter):
@@ -577,6 +580,7 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
         #y = z - u
         # normalize z
         D[:] = 0
+        lamb_sum = 0
         for j in range(L):
             yi = y[j*3:(j+1)*3]
             zi = z[j*3:(j+1)*3]
@@ -587,10 +591,15 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
             if (sign<0):
                 print("sign change")
 
-            if ynorm >= np.sqrt(2)/2 or True:
+            if ynorm>(np.sqrt(2)/2.0) or True:
                 #v = yi *.5 + zi*.5
                 z[j*3:(j+1)*3] =  yi  * sign * (1.0/(ynorm)) * (1.0/np.sqrt(2))
-                lamb[j] *= sign * ynorm*np.sqrt(2)
+                #lamb[j] *= sign * ynorm*np.sqrt(2)
+
+                #lamb[j] -= (1.0/ynorm)-(np.sqrt(2.0))
+                #print(lu)
+
+                lamb_sum += lamb[j]
                 #lamb[j] = sign*(ynorm*np.sqrt(2)-1.0)
 
 
@@ -600,8 +609,12 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
                 #lamb[j] = 0.0
 
             Q[j,j*3:(j+1)*3] = z[j*3:(j+1)*3].T
-            D[ j*3:(j+1)*3] = lamb[j]
+            D[ j*3:(j+1)*3] = lamb[j] #if lamb[j] > 0 else 0
 
+        #z += dz
+        lamb *=0
+
+        #D = np.eye(L*3)*lamb_sum / (L*3)
         #print(np.linalg.pinv(Q.T))
         #print(Q.dot(RR.dot(Q.T)))
         #print(lamb)
@@ -612,10 +625,16 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
         g_z = RRi.dot(z) - c + Q.T.dot(lamb)
         g_lamb = .5*(np.diag(Q.dot(Q.T)).reshape(-1,1) - np.ones((L,1))*.5)
         #print(g_lamb)
-        d_lamb = np.linalg.solve( Q.dot(SS).dot(Q.T), Q.dot(SS).dot(g_z) - g_lamb * 0)
+        #g_lamb*=0
+        d_lamb = np.linalg.solve( Q.dot(SS).dot(Q.T) , Q.dot(SS).dot(g_z) - g_lamb * 1)
         #print(Q.dot(SS).dot(Q.T))
-        #print(d_lamb)
+        #print(Q.dot(z))
+
+        #d_z = -SS.dot(g_z) - SS.dot(Q.T.dot(d_lamb))
+
+        #z -= d_z
         lamb -= d_lamb
+        #print(lamb)
         #lamb *= lamb > 0
 
         #c2 = RRi.dot(z)-c
@@ -628,15 +647,26 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
         #print("best fit lamba")
         #print(lamb)
         #lkwjef
+
+        lamb_sum = 0
         for j in range(L):
-            D[ j*3:(j+1)*3] = lamb[j] #*  (lamb[j] >= 0)
+            lamb_sum += lamb[j]
+
+
+        for j in range(L):
+            D[ j*3:(j+1)*3] = abs(lamb[j]) #*  (lamb[j] >= 0)
+            #D[ j*3:(j+1)*3] = abs(lamb_sum/L) #*  (lamb[j] >= 0)
+
+            #D[ j*3:(j+1)*3] = lamb[j] *  (lamb[j] >= 0)
+
+
 
         #lkwjef
         #print("g norm after lambda")
         g_z = 2*RRi.dot(z) - 2*c + 2*Q.T.dot(lamb)
         e = np.linalg.norm(g_z)**2
         #print(e)
-        if (e < 1e-19 or i==maxiter-1 and i!=0 ):
+        if ((e < 1e-10 or i==maxiter-1) and i!=0 ):
 
             print("solve_power converged at iter %d with" % i)
             print(e)
@@ -644,7 +674,7 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
             #print(lamb)
             s = np.linalg.solve(RR, R.dot(p)-z)
             x = p-Mi.dot(R.T.dot(s))
-            return x,z,lamb
+            return x,z,lamb,i
 
 
 #    if False:
@@ -657,12 +687,12 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
 #            c[j] = .5*(v.T.dot(v)-1)
 
 
-
-if False:
+use_pygame = True
+if use_pygame:
     import sys, pygame
     pygame.init()
 
-    size = width, height = 2*320, 2*240
+    size = width, height = 4*320, 4*240
     speed = [2, 2]
     black = 0, 0, 0
 
@@ -673,18 +703,19 @@ if False:
 N = 64
 p = np.zeros((N*3,1))
 m = np.zeros((N,1))
-p0 = np.array([[0.0,0.0,0.0]])
+pFixed =  np.array([[17.0,56.0,0.0]])
+p0 = pFixed.copy()
 zigzag = np.array([[1,0,0]])
 for i in range(N):
     p[i*3:(i+1)*3,0] = p0
-    noise = 0.0
+    noise = 1.0
     delta2 = np.random.randn(1,3) * noise
     zigzag*= -1
-    delta = np.array([[0,1,0]],dtype=np.float32) + zigzag + delta2
+    delta = np.array([[-1,1,0]],dtype=np.float32) + zigzag + delta2
     delta /= np.linalg.norm(delta)
     f = 1.0 if i<N-1 else 1.0
     p0 += delta * f
-    m[i] = 10000.0 if  i==N-1   else 1.0
+    m[i] = 1.0 if i==N-1 or i==N-1  else 0.0001
 
 
 
@@ -716,7 +747,8 @@ x1 = p.copy()
 z = None
 lamb = None
 lamb_newton = None
-for i in range(2115):
+total_iters = 0;
+for i in range(1215):
 
     dt = 0.1
 
@@ -730,23 +762,23 @@ for i in range(2115):
         x1[j*3:(j+1)*3,0] += np.array([1,0,0]) * 0.098 * dt
     #print("targets")
     #print(x1)
-    x1[0:3] *=0 # pin
-    xp,z,lamb = solve_power(m, x1, 32, pre_z = z, pre_lamb= lamb )
-
-
-
-    y,lamb_newton = solve_newton(m, x1, lamb_newton, 32 )
-    l = np.linalg.norm(xp-y)
-    print("solution divergence")
-    print(l)
-    if l>0.1 and False:
-        print("x values")
-        print( xp)
-        #print(lamb)
-        #print(xp-y)
-    x1[:] = xp
+    x1[0:3] = pFixed.T # pin
+    xp,z,lamb,used_iters = solve_power(m, x1, 31, pre_z = z, pre_lamb= lamb )
+    total_iters += used_iters
 
     if False:
+        y,lamb_newton = solve_newton(m, x1, lamb_newton, 32 )
+        l = np.linalg.norm(xp-y)
+        print("solution divergence")
+        print(l)
+        if l>0.1 and False:
+            print("x values")
+            print( xp)
+            #print(lamb)
+            #print(xp-y)
+    x1[:] = xp
+
+    if use_pygame:
         for i in range(1,N):
             pp0 = 15*xp[(i-1)*3:i*3].flatten() + [55,55,55]
             pp1 = 15*xp[i*3:(i+1)*3].flatten() + [55,55,55]
@@ -765,7 +797,7 @@ for i in range(2115):
     #print(p)
 #print(Q.dot(Q.T))
 #print(Q.dot(R).dot(R.T).dot(Q.T))
-
+print("total = %d" % total_iters )
 
 #print(scipy.linalg.null_space(R))
 
