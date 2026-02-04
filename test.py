@@ -529,6 +529,8 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None, pre_L2 = None ):
     for i in range(P):
         Mi[i*3:(i+1)*3,i*3:(i+1)*3] = np.eye(3) * ( (1/m[i]) if m[i] > 0.0 else 0.0)
 
+    R *= np.sqrt(2)
+
     RR = R.dot(Mi.dot(R.T))
 
     #d,_ = np.linalg.eigh(RR)
@@ -554,168 +556,39 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None, pre_L2 = None ):
         #print("inner iter %d" % i )
         z0 = z.copy()
 
-        # project z
-        #for j in range(L):
-        #    zi = z[j*3:(j+1)*3]
-        #    z[j*3:(j+1)*3] /= np.linalg.norm(zi)
-        #    Q[j,j*3:(j+1)*3] = z[j*3:(j+1)*3].T
-        #
-
-        #D[ j*3:(j+1)*3] = lamb[j] #if lamb[j] > 0 else 0
-
-
-        #RRi(z+u) = RRiRtp
-        # solve for update
-        #y = np.linalg.solve(RR+np.eye(L*3)*3, z-R.dot(p))
-        #S = np.linalg.inv(RR-np.eye(L*3)*10)
-        #S = (RR)
-        #y = S.dot(z)-c
-        # (2RRi+D)^-1(-g_z)
-        #B-1 = A(BA)-1 = AA-1B-1 = B-1
-        #  A(I+DA)-1 A-1 (-z + 2Rp + AQTlamb)
-        #  A(I+DA)-1 A-1(-z + Rp + AQTlamb)
-        # gz = 2 RR-1(z-Rp) + 2QTlamb
-
-        #g_z = 2*RRi.dot(z) - 2*c + 2*Q.T.dot(lamb)
-        #dz = R.dot(p) - RR.dot(Q.T.dot(lamb)) - z
-        #g_z = 2*L2-tL2-1z - 2*L2-tL2-1(Rp) + 2*Q.T.dot(lamb)
-        # b  = 2L2-1(Rp-z) - L2tQtLamb
-
-        #dz = np.linalg.solve( 2*(RRi+np.diag(D)), -g_z)
-        #  L2-1L2(Lt-1L-1+D)-1L2-1L2
-        # dz = .5*RR.dot( np.linalg.solve( 1*np.eye(L*3)+np.diag(D).dot(RR), -g_z) )
-        #dz = (.5*RR+np.diag(D)).dot(-g_z)
-        #print(np.eye(L*3)+np.diag(D).dot(RR))
-        b = scipy.linalg.solve( L2, R.dot(p)-z, assume_a='banded' ) - L2.T.dot(Q.T).dot(lamb)
-        #print(b)
-        dz =  L2.dot( scipy.linalg.solve( np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2)) , b, assume_a='banded'))
-        dznorm = np.linalg.norm(dz)
-        #print("dz norm")
-        #print(dznorm )
-        y = z + (dz/(dznorm)) * min(999999999,dznorm)
-        #y = z + g
-        #y = np.linalg.solve( RRi+np.diag(D), -Q.T.dot(lamb)+c)
-
-        #y = np.linalg.solve( np.eye(L*3)+np.diag(D).dot(RR) , RR.dot(z)) - c
-        #print("g norm")
-        #print(np.linalg.norm(g))
-        #wefwef
-        #y = z*.5 + u*.5
-        #y = np.linalg.solve(RRi+np.diag(D), c - Q.T.dot(lamb) )
-        #print(Q.dot(Q.T))
-        #dz = z - R.dot(p) + np.linalg.solve(RR,Q.T.dot(lamb))
-        #u = (RR-np.eye(L*3)*0.0).dot(R.dot(p)-z)
-        #u = R.dot(p) - RR.dot(z)
-        #y = z + u
-        #print(u)
-        #waefwaf
-        #y = z*.5 + y*.5
-        #y = z - u
-        # normalize z
-        D[:] = 0
-        lamb_sum = 0
+        # project z and set Q
         for j in range(L):
-            yi = y[j*3:(j+1)*3]
             zi = z[j*3:(j+1)*3]
-            sign = 1.0 if zi.T.dot(yi) >= 0 else -1.0
-            ynorm = np.linalg.norm(yi)
-            #print(ynorm)
-            sign = 1
-            if (sign<0):
-                print("sign change")
+            znorm = np.linalg.norm(zi)
+            #if znorm>1.0:
+            z[j*3:(j+1)*3] /= znorm #* np.sqrt(2)
 
-            if ynorm>(np.sqrt(2)/2.0) or True:
-                #v = yi *.5 + zi*.5
-                z[j*3:(j+1)*3] =  yi  * sign * (1.0/(ynorm)) * (1.0/np.sqrt(2))
-                #lamb[j] *= sign * ynorm*np.sqrt(2)
+            Q[j,j*3:(j+1)*3] = z[j*3:(j+1)*3].T / znorm
 
-                #lamb[j] -= (1.0/ynorm)-(np.sqrt(2.0))
-                #print(lu)
-
-                lamb_sum += lamb[j]
-                #lamb[j] = sign*(ynorm*np.sqrt(2)-1.0)
-
-
-            else:
-                z[j*3:(j+1)*3] = yi
-                pass
-                #lamb[j] = 0.0
-
-            Q[j,j*3:(j+1)*3] = z[j*3:(j+1)*3].T
-            D[ j*3:(j+1)*3] = lamb[j] #if lamb[j] > 0 else 0
-
-        #z += dz
-        lamb *=0
-
-        #D = np.eye(L*3)*lamb_sum / (L*3)
-        #print(np.linalg.pinv(Q.T))
-        #print(Q.dot(RR.dot(Q.T)))
-        #print(lamb)
-
-        #Si = np.linalg.inv(RRi+np.diag(D))
-        SS = RR
-        #SS = np.diag(np.diag(RR))
-        if False:
-            g_z = RRi.dot(z) - c + Q.T.dot(lamb)
-            g_lamb = .5*(np.diag(Q.dot(Q.T)).reshape(-1,1) - np.ones((L,1))*.5)
-            #print(g_lamb)
-            #g_lamb*=0
-            d_lamb = np.linalg.solve( Q.dot(SS).dot(Q.T), Q.dot(SS).dot(g_z) - g_lamb * 1)
-        # (Q SS QT)-1( Q SS ( SS-1z - SS-1Rp + QTlamb ) - g_lamb)
-        # (Q SS QT)-1( Qz - QRp + QSS-1QTlamb ) - g_lamb)
-        # (Q SS QT)-1( Q(z-Rp) + lamb - g_lamb = ( lamb_new - lamb)
-        # lamb = Q SS QT -1 Q(z-Rp)
-        # lamb = (Q LLt Qt) -1 Q(z-Rp)
-        #print(Q.dot(SS).dot(g_z) - g_lamb * 1)
-
-        #print( Q.T.dot( np.linalg.inv(Q.dot(SS).dot(Q.T)).dot(Q) ) )
-        #print(Q.dot(z))
-        #print(R.T.dot(Q.T))
-        #d_z = -SS.dot(g_z) - SS.dot(Q.T.dot(d_lamb))
-        #z -= d_z
-        #lamb -= d_lamb
+        # solve lambda
         lamb = scipy.linalg.solve( Q.dot(RR).dot(Q.T), Q.dot(R.dot(p)-z), assume_a='tridiagonal')
-        #print(lamb)
-        #lamb *= lamb > 0
 
-        #c2 = RRi.dot(z)-c
-        #lamb =  -np.linalg.inv(Q.dot(Q.T)).dot(Q).dot(c2) * 1
-
-
-
-        #print(Q.dot(RR).dot(Q.T))
-        #lamb *= lamb > 0
-        #print("best fit lamba")
-        #print(lamb)
-        #lkwjef
-
-        lamb_sum = 0
+        #D = diag(abs(lamb))
         for j in range(L):
-            lamb_sum += lamb[j]
+            D[ j*3:(j+1)*3] = abs(lamb[j]) if lamb[j]>=0 else 0.0 #abs(lamb[j]) * (lamb[j] >= 0)
 
+        bz = scipy.linalg.solve( L2, R.dot(p)-z, assume_a='banded' )
+        bl = L2.T.dot(Q.T).dot(lamb)
+        #print(b)
 
-        for j in range(L):
-            D[ j*3:(j+1)*3] = abs(lamb[j]) #*  (lamb[j] >= 0)
-            #D[ j*3:(j+1)*3] = abs(lamb_sum/L) #*  (lamb[j] >= 0)
-
-            #D[ j*3:(j+1)*3] = lamb[j] *  (lamb[j] >= 0)
-
-
-
-        #lkwjef
-        #print("g norm after lambda")
-        #g_z = 2*RRi.dot(z) - 2*c + 2*Q.T.dot(lamb)
-        e = np.linalg.norm(b)**2
+        e = np.linalg.norm(bz-bl)**2
         #print(e)
-        if ((e < 1e-10 or i==maxiter-1) and i!=0 ):
-
+        if ((e < 1e-15 or i==maxiter-1) and i!=0 ):
             print("solve_power converged at iter %d with" % i)
             print(e)
-            #print(z)
-            #print(lamb)
-            s = np.linalg.solve(RR, R.dot(p)-z)
+            s = np.linalg.solve(L2.T, bz )
             x = p-Mi.dot(R.T.dot(s))
             return x,z,lamb,i,L2
+
+        # newton step
+        dz =  L2.dot( scipy.linalg.solve( np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2)) , bz-bl, assume_a='banded'))
+        z += dz
+
 
 
 #    if False:
@@ -740,7 +613,7 @@ if use_pygame:
     pygame.display.set_caption("My First Pygame Window")
     pygame.event.pump()
 
-N = 128
+N = 1024
 p = np.zeros((N*3,1))
 m = np.zeros((N,1))
 pFixed =  np.array([[7.0,6.0,0.0]])
@@ -821,6 +694,8 @@ for i in range(1235):
             #print(lamb)
             #print(xp-y)
     x1[:] = xp
+    print(np.linalg.norm(x1[3:6]-x1[0:3]))
+    print(np.linalg.norm(z[3:6]))
 
     if use_pygame:
         for i in range(1,N):
