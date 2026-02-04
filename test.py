@@ -5,6 +5,7 @@ import sys
 import time
 from scipy.linalg import null_space
 from scipy.sparse.linalg import cg
+from scipy.linalg import solve_banded
 
 np.set_printoptions(precision=2,linewidth=1260,threshold=sys.maxsize)
 
@@ -479,7 +480,7 @@ def solve_pgd( m, pi, maxiter, pre_z = None):
 #            D[ j*3:(j+1)*3] = lamb[j]
 #            c[j] = .5*(v.T.dot(v)-1)
 
-def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
+def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None, pre_L2 = None ):
     P = len(m)
     L = P-1
 
@@ -536,14 +537,32 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
 
 
 
-    RRi = np.linalg.inv(RR)
-    #L2 = scipy.linalg.cholesky(RR)
+    #RRi = np.linalg.inv(RR)
+    #print("RRi=")
+    #print(RRi)
+    #print("RR=")
+    #print(RR)
+    if pre_L2 is None:
+        L2 = scipy.linalg.cholesky(RR).T
+    else:
+        L2 = pre_L2
+
     #print(L2 )
-    c = RRi.dot(R.dot(p))
+    #c = RRi.dot(R.dot(p))
     #print(z)
     for i in range(maxiter):
         #print("inner iter %d" % i )
         z0 = z.copy()
+
+        # project z
+        #for j in range(L):
+        #    zi = z[j*3:(j+1)*3]
+        #    z[j*3:(j+1)*3] /= np.linalg.norm(zi)
+        #    Q[j,j*3:(j+1)*3] = z[j*3:(j+1)*3].T
+        #
+
+        #D[ j*3:(j+1)*3] = lamb[j] #if lamb[j] > 0 else 0
+
 
         #RRi(z+u) = RRiRtp
         # solve for update
@@ -551,11 +570,25 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
         #S = np.linalg.inv(RR-np.eye(L*3)*10)
         #S = (RR)
         #y = S.dot(z)-c
+        # (2RRi+D)^-1(-g_z)
+        #B-1 = A(BA)-1 = AA-1B-1 = B-1
+        #  A(I+DA)-1 A-1 (-z + 2Rp + AQTlamb)
+        #  A(I+DA)-1 A-1(-z + Rp + AQTlamb)
+        # gz = 2 RR-1(z-Rp) + 2QTlamb
 
-        g_z = 2*RRi.dot(z) - 2*c + 2*Q.T.dot(lamb)
+        #g_z = 2*RRi.dot(z) - 2*c + 2*Q.T.dot(lamb)
+        #dz = R.dot(p) - RR.dot(Q.T.dot(lamb)) - z
+        #g_z = 2*L2-tL2-1z - 2*L2-tL2-1(Rp) + 2*Q.T.dot(lamb)
+        # b  = 2L2-1(Rp-z) - L2tQtLamb
+
         #dz = np.linalg.solve( 2*(RRi+np.diag(D)), -g_z)
-        dz = .5*RR.dot( np.linalg.solve( np.eye(L*3)+np.diag(D).dot(RR), -g_z) )
+        #  L2-1L2(Lt-1L-1+D)-1L2-1L2
+        # dz = .5*RR.dot( np.linalg.solve( 1*np.eye(L*3)+np.diag(D).dot(RR), -g_z) )
         #dz = (.5*RR+np.diag(D)).dot(-g_z)
+        #print(np.eye(L*3)+np.diag(D).dot(RR))
+        b = scipy.linalg.solve( L2, R.dot(p)-z, assume_a='banded' ) - L2.T.dot(Q.T).dot(lamb)
+        #print(b)
+        dz =  L2.dot( scipy.linalg.solve( np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2)) , b, assume_a='banded'))
         dznorm = np.linalg.norm(dz)
         #print("dz norm")
         #print(dznorm )
@@ -622,18 +655,26 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
         #Si = np.linalg.inv(RRi+np.diag(D))
         SS = RR
         #SS = np.diag(np.diag(RR))
-        g_z = RRi.dot(z) - c + Q.T.dot(lamb)
-        g_lamb = .5*(np.diag(Q.dot(Q.T)).reshape(-1,1) - np.ones((L,1))*.5)
-        #print(g_lamb)
-        #g_lamb*=0
-        d_lamb = np.linalg.solve( Q.dot(SS).dot(Q.T) , Q.dot(SS).dot(g_z) - g_lamb * 1)
-        #print(Q.dot(SS).dot(Q.T))
+        if False:
+            g_z = RRi.dot(z) - c + Q.T.dot(lamb)
+            g_lamb = .5*(np.diag(Q.dot(Q.T)).reshape(-1,1) - np.ones((L,1))*.5)
+            #print(g_lamb)
+            #g_lamb*=0
+            d_lamb = np.linalg.solve( Q.dot(SS).dot(Q.T), Q.dot(SS).dot(g_z) - g_lamb * 1)
+        # (Q SS QT)-1( Q SS ( SS-1z - SS-1Rp + QTlamb ) - g_lamb)
+        # (Q SS QT)-1( Qz - QRp + QSS-1QTlamb ) - g_lamb)
+        # (Q SS QT)-1( Q(z-Rp) + lamb - g_lamb = ( lamb_new - lamb)
+        # lamb = Q SS QT -1 Q(z-Rp)
+        # lamb = (Q LLt Qt) -1 Q(z-Rp)
+        #print(Q.dot(SS).dot(g_z) - g_lamb * 1)
+
+        #print( Q.T.dot( np.linalg.inv(Q.dot(SS).dot(Q.T)).dot(Q) ) )
         #print(Q.dot(z))
-
+        #print(R.T.dot(Q.T))
         #d_z = -SS.dot(g_z) - SS.dot(Q.T.dot(d_lamb))
-
         #z -= d_z
-        lamb -= d_lamb
+        #lamb -= d_lamb
+        lamb = scipy.linalg.solve( Q.dot(RR).dot(Q.T), Q.dot(R.dot(p)-z), assume_a='tridiagonal')
         #print(lamb)
         #lamb *= lamb > 0
 
@@ -663,8 +704,8 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
 
         #lkwjef
         #print("g norm after lambda")
-        g_z = 2*RRi.dot(z) - 2*c + 2*Q.T.dot(lamb)
-        e = np.linalg.norm(g_z)**2
+        #g_z = 2*RRi.dot(z) - 2*c + 2*Q.T.dot(lamb)
+        e = np.linalg.norm(b)**2
         #print(e)
         if ((e < 1e-10 or i==maxiter-1) and i!=0 ):
 
@@ -674,7 +715,7 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None ):
             #print(lamb)
             s = np.linalg.solve(RR, R.dot(p)-z)
             x = p-Mi.dot(R.T.dot(s))
-            return x,z,lamb,i
+            return x,z,lamb,i,L2
 
 
 #    if False:
@@ -692,30 +733,31 @@ if use_pygame:
     import sys, pygame
     pygame.init()
 
-    size = width, height = 4*320, 4*240
     speed = [2, 2]
     black = 0, 0, 0
 
-    screen = pygame.display.set_mode(size)
+    screen = pygame.display.set_mode((2*800,2*600))
+    pygame.display.set_caption("My First Pygame Window")
+    pygame.event.pump()
 
-
-
-N = 64
+N = 128
 p = np.zeros((N*3,1))
 m = np.zeros((N,1))
-pFixed =  np.array([[17.0,56.0,0.0]])
+pFixed =  np.array([[7.0,6.0,0.0]])
 p0 = pFixed.copy()
 zigzag = np.array([[1,0,0]])
 for i in range(N):
     p[i*3:(i+1)*3,0] = p0
+    pFix2 = p0
     noise = 1.0
     delta2 = np.random.randn(1,3) * noise
-    zigzag*= -1
-    delta = np.array([[-1,1,0]],dtype=np.float32) + zigzag + delta2
+    zigzag*= -1 * 0
+    delta = np.array([[1,1,0]],dtype=np.float32) + zigzag + delta2
     delta /= np.linalg.norm(delta)
     f = 1.0 if i<N-1 else 1.0
-    p0 += delta * f
-    m[i] = 1.0 if i==N-1 or i==N-1  else 0.0001
+    p0 += delta * f * 1.0
+    m[i] = 1.0 if i==N/2   else 0.01
+
 
 
 
@@ -747,10 +789,11 @@ x1 = p.copy()
 z = None
 lamb = None
 lamb_newton = None
+L2 = None
 total_iters = 0;
-for i in range(1215):
+for i in range(1235):
 
-    dt = 0.1
+    dt = 0.5
 
     v = (x1-x0)/dt
     #print("velocity")
@@ -763,7 +806,8 @@ for i in range(1215):
     #print("targets")
     #print(x1)
     x1[0:3] = pFixed.T # pin
-    xp,z,lamb,used_iters = solve_power(m, x1, 31, pre_z = z, pre_lamb= lamb )
+    x1[N*3-3:N*3] = pFix2.T
+    xp,z,lamb,used_iters,L2 = solve_power(m, x1, 131, pre_z = z, pre_lamb= lamb, pre_L2 = L2 )
     total_iters += used_iters
 
     if False:
