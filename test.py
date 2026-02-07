@@ -520,7 +520,7 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None, pre_L2 = None ):
     for i in range(L):
         zi = z[i*3:(i+1)*3,0]
         znorm = np.linalg.norm(zi)
-        zi /= znorm * np.sqrt(2)
+        zi /= znorm #* np.sqrt(2)
 
     if not pre_z is None:
         z = pre_z
@@ -536,7 +536,9 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None, pre_L2 = None ):
     #d,_ = np.linalg.eigh(RR)
     #print(d)
     #lkwjef
-
+    print(z)
+    print(p)
+    #exit()
 
 
     #RRi = np.linalg.inv(RR)
@@ -555,15 +557,15 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None, pre_L2 = None ):
     for i in range(maxiter):
         #print("inner iter %d" % i )
         z0 = z.copy()
-
+        #print(z)
         # project z and set Q
         for j in range(L):
-            zi = z[j*3:(j+1)*3]
-            znorm = np.linalg.norm(zi)
+            zi = np.zeros((3,1))
+            zi[:] = z[j*3:(j+1)*3]
+            zi /= np.linalg.norm(zi)
             #if znorm>1.0:
-            z[j*3:(j+1)*3] /= znorm #* np.sqrt(2)
-
-            Q[j,j*3:(j+1)*3] = z[j*3:(j+1)*3].T / znorm
+            z[j*3:(j+1)*3]=zi
+            Q[j,j*3:(j+1)*3] = zi.T #/ znorm
 
         # solve lambda
         lamb = scipy.linalg.solve( Q.dot(RR).dot(Q.T), Q.dot(R.dot(p)-z), assume_a='tridiagonal')
@@ -572,21 +574,21 @@ def solve_power( m, pi, maxiter, pre_z = None, pre_lamb = None, pre_L2 = None ):
         for j in range(L):
             D[ j*3:(j+1)*3] = abs(lamb[j]) if lamb[j]>=0 else 0.0 #abs(lamb[j]) * (lamb[j] >= 0)
 
-        bz = scipy.linalg.solve( L2, R.dot(p)-z, assume_a='banded' )
+        bz = scipy.linalg.solve( L2, R.dot(p)-z, assume_a='lower triangular' )
         bl = L2.T.dot(Q.T).dot(lamb)
         #print(b)
 
         e = np.linalg.norm(bz-bl)**2
-        #print(e)
+        print(e)
         if ((e < 1e-15 or i==maxiter-1) and i!=0 ):
             print("solve_power converged at iter %d with" % i)
             print(e)
-            s = np.linalg.solve(L2.T, bz )
+            s = scipy.linalg.solve(L2.T, bz, assume_a='upper triangular' )
             x = p-Mi.dot(R.T.dot(s))
             return x,z,lamb,i,L2
 
         # newton step
-        dz =  L2.dot( scipy.linalg.solve( np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2)) , bz-bl, assume_a='banded'))
+        dz =  L2.dot( scipy.linalg.solve( np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2)) , bz-bl, assume_a='symmetric'))
         z += dz
 
 
@@ -613,7 +615,7 @@ if use_pygame:
     pygame.display.set_caption("My First Pygame Window")
     pygame.event.pump()
 
-N = 1024
+N = 128
 p = np.zeros((N*3,1))
 m = np.zeros((N,1))
 pFixed =  np.array([[7.0,6.0,0.0]])
@@ -621,15 +623,15 @@ p0 = pFixed.copy()
 zigzag = np.array([[1,0,0]])
 for i in range(N):
     p[i*3:(i+1)*3,0] = p0
-    pFix2 = p0
-    noise = 1.0
+    pFix2 = p0.copy()
+    noise = 0.0
     delta2 = np.random.randn(1,3) * noise
     zigzag*= -1 * 0
-    delta = np.array([[1,1,0]],dtype=np.float32) + zigzag + delta2
+    delta = np.array([[0,1,0]],dtype=np.float32) + zigzag + delta2
     delta /= np.linalg.norm(delta)
     f = 1.0 if i<N-1 else 1.0
     p0 += delta * f * 1.0
-    m[i] = 1.0 if i==N/2   else 0.01
+    m[i] = 1.0 if i==N-1 or i==int(N*0.8)   else 0.0001
 
 
 
@@ -664,7 +666,7 @@ lamb = None
 lamb_newton = None
 L2 = None
 total_iters = 0;
-for i in range(1235):
+for i in range(100):
 
     dt = 0.5
 
@@ -680,7 +682,7 @@ for i in range(1235):
     #print(x1)
     x1[0:3] = pFixed.T # pin
     x1[N*3-3:N*3] = pFix2.T
-    xp,z,lamb,used_iters,L2 = solve_power(m, x1, 131, pre_z = z, pre_lamb= lamb, pre_L2 = L2 )
+    xp,z,lamb,used_iters,L2 = solve_power(m, x1, 131, pre_z = None, pre_lamb= lamb, pre_L2 = L2 )
     total_iters += used_iters
 
     if False:
