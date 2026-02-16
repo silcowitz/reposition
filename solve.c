@@ -1,5 +1,6 @@
-
+#include "solve.h"
 #include <math.h>
+
 
 /* Solve A x = b for symmetric tridiagonal SPD A
  *
@@ -14,16 +15,16 @@
  */
 int sym_tridiag_solve(
     int n,
-    const double *Ad,
-    const double *Al,
-    const double *b,
-    double *x
+    const scalar *Ad,
+    const scalar *Al,
+    const scalar *b,
+    scalar *x
 ) {
     if (n <= 0) return -1;
 
     /* factor A = L L^T */
-    double Ld[n];
-    double Ll[n];
+    scalar Ld[n];
+    scalar Ll[n];
 
     if (Ad[0] <= 0.0) return -1;
     Ld[0] = sqrt(Ad[0]);
@@ -31,7 +32,7 @@ int sym_tridiag_solve(
 
     for (int i = 1; i < n; i++) {
         Ll[i] = Al[i] / Ld[i-1];
-        double t = Ad[i] - Ll[i]*Ll[i];
+        scalar t = Ad[i] - Ll[i]*Ll[i];
         if (t <= 0.0) return -1;
         Ld[i] = sqrt(t);
     }
@@ -68,13 +69,13 @@ int sym_tridiag_solve(
 int sym_tridiag_block_solve_direct(
     int n,
     int bs,
-    const double *Ad,
-    const double *Al,
-    const double *B,
-    double *X
+    const scalar *Ad,
+    const scalar *Al,
+    const scalar *B,
+    scalar *X
 ) {
     /* workspace for modified diagonal */
-    double D[n];
+    scalar D[n];
 
     /* ---- forward sweep: build D and solve L Y = B ---- */
 
@@ -87,7 +88,7 @@ int sym_tridiag_block_solve_direct(
 
     /* i = 1..n-1 */
     for (int i = 1; i < n; i++) {
-        double ell = Al[i] / D[i - 1];
+        scalar ell = Al[i] / D[i - 1];
         D[i] = Ad[i] - ell * ell * D[i - 1];
         if (D[i] == 0.0) return -1;
 
@@ -100,7 +101,7 @@ int sym_tridiag_block_solve_direct(
 
     /* ---- diagonal solve: Z = D^{-1} Y ---- */
     for (int i = 0; i < n; i++) {
-        double inv = 1.0 / D[i];
+        scalar inv = 1.0 / D[i];
         int off = i * bs;
         for (int k = 0; k < bs; k++)
             X[off + k] *= inv;
@@ -108,7 +109,7 @@ int sym_tridiag_block_solve_direct(
 
     /* ---- backward sweep: L^T X = Z ---- */
     for (int i = n - 2; i >= 0; i--) {
-        double ell = Al[i + 1] / D[i];
+        scalar ell = Al[i + 1] / D[i];
         int off  = i * bs;
         int offp = (i + 1) * bs;
 
@@ -124,9 +125,9 @@ int sym_tridiag_block_solve_direct(
 
 void block_lower_tridiag_solve(
     int n, int bs,
-    const double *a,
-    const double *b,
-    double *d
+    const scalar *a,
+    const scalar *b,
+    scalar *d
 ) {
     int i, k;
 
@@ -134,7 +135,7 @@ void block_lower_tridiag_solve(
         d[k] /= b[0];
 
     for (i = 1; i < n; i++) {
-        double inv = 1.0 / b[i];
+        scalar inv = 1.0 / b[i];
         for (k = 0; k < bs; k++) {
             d[i*bs + k] =
                 (d[i*bs + k] - a[i] * d[(i-1)*bs + k]) * inv;
@@ -145,9 +146,9 @@ void block_lower_tridiag_solve(
 
 void block_upper_tridiag_solve(
     int n, int bs,
-    const double *b,
-    const double *c,
-    double *d
+    const scalar *b,
+    const scalar *c,
+    scalar *d
 ) {
     int i, k;
 
@@ -155,7 +156,7 @@ void block_upper_tridiag_solve(
         d[(n-1)*bs + k] /= b[n-1];
 
     for (i = n-2; i >= 0; i--) {
-        double inv = 1.0 / b[i];
+        scalar inv = 1.0 / b[i];
         for (k = 0; k < bs; k++) {
             d[i*bs + k] =
                 (d[i*bs + k] - c[i] * d[(i+1)*bs + k]) * inv;
@@ -175,10 +176,10 @@ void block_upper_tridiag_solve(
  */
 void lower_bidiag_solve(
     int n,
-    const double *Ld,
-    const double *Ll,
-    const double *b,
-    double *x
+    const scalar *Ld,
+    const scalar *Ll,
+    const scalar *b,
+    scalar *x
 ) {
     x[0] = b[0] / Ld[0];
 
@@ -199,13 +200,13 @@ void lower_bidiag_solve(
 void lower_bidiag_block_solve(
     int n,
     int bs,
-    const double *Ld,
-    const double *Ll,
-    const double *B,
-    double *X
+    const scalar *Ld,
+    const scalar *Ll,
+    const scalar *B,
+    scalar *X
 ) {
     /* first block */
-    double inv = 1.0 / Ld[0];
+    scalar inv = 1.0 / Ld[0];
     for (int k = 0; k < bs; k++)
         X[k] = B[k] * inv;
 
@@ -226,13 +227,13 @@ void lower_bidiag_block_solve(
 void upper_bidiag_block_solve(
     int n,
     int bs,
-    const double *Ld,
-    const double *Ll,
-    const double *B,
-    double *X
+    const scalar *Ld,
+    const scalar *Ll,
+    const scalar *B,
+    scalar *X
 ) {
     /* last block */
-    double inv = 1.0 / Ld[n - 1];
+    scalar inv = 1.0 / Ld[n - 1];
     int off = (n - 1) * bs;
     for (int k = 0; k < bs; k++)
         X[off + k] = B[off + k] * inv;
@@ -258,10 +259,10 @@ void upper_bidiag_block_solve(
 void lower_bidiag_block_mul(
     int n,
     int bs,
-    const double *Ld,
-    const double *Ll,
-    const double *x,
-    double *y
+    const scalar *Ld,
+    const scalar *Ll,
+    const scalar *x,
+    scalar *y
 ) {
     /* first block */
     for (int k = 0; k < bs; k++)
@@ -287,10 +288,10 @@ void lower_bidiag_block_mul(
 void upper_bidiag_block_mul(
     int n,
     int bs,
-    const double *Ld,
-    const double *Ll,
-    const double *x,
-    double *y
+    const scalar *Ld,
+    const scalar *Ll,
+    const scalar *x,
+    scalar *y
 ) {
     /* last block */
     int off = (n - 1) * bs;
@@ -313,10 +314,10 @@ void upper_bidiag_block_mul(
 
 void block_lower_tridiag_mv(
     int n, int bs,
-    const double *a,
-    const double *b,
-    const double *x,
-    double *y
+    const scalar *a,
+    const scalar *b,
+    const scalar *x,
+    scalar *y
 ) {
     int i, k;
 
@@ -336,13 +337,14 @@ void block_lower_tridiag_mv(
 
 void block_upper_tridiag_mv(
     int n, int bs,
-    const double *b,
-    const double *c,
-    const double *x,
-    double *y
+    const scalar *b,
+    const scalar *c,
+    const scalar *x,
+    scalar *y
 ) {
     int i, k;
 
+    // TODO move to bottom
     for (k = 0; k < bs; k++)
         y[(n-1)*bs + k] = b[n-1] * x[(n-1)*bs + k];
 
@@ -358,13 +360,13 @@ void block_upper_tridiag_mv(
 
 void tridiag_LU_to_tridiag(
     int n,
-    const double *aL,
-    const double *bL,
-    const double *bU,
-    const double *cU,
-    double *a,
-    double *b,
-    double *c
+    const scalar *aL,
+    const scalar *bL,
+    const scalar *bU,
+    const scalar *cU,
+    scalar *a,
+    scalar *b,
+    scalar *c
 ) {
     int i;
 
@@ -388,9 +390,9 @@ void tridiag_LU_to_tridiag(
  */
 void tridiag_UL_to_tridiag(
     int n,
-    const double *bU, const double *cU,
-    const double *aL, const double *bL,
-    double *a, double *b, double *c
+    const scalar *bU, const scalar *cU,
+    const scalar *aL, const scalar *bL,
+    scalar *a, scalar *b, scalar *c
 ) {
     int i;
 
@@ -409,36 +411,36 @@ void tridiag_UL_to_tridiag(
 
 #include <math.h>
 
-void normalize_q(int n, int bs, double *q)
+void normalize_q(int n, int bs, scalar *q)
 {
     int i, k;
     for (i = 0; i < n; i++) {
-        double norm = 0.0;
+        scalar norm = 0.0;
         for (k = 0; k < bs; k++) {
-            double v = q[i*bs + k];
+            scalar v = q[i*bs + k];
             norm += v * v;
         }
         norm = sqrt(norm);
 
         if (norm > 0.0) {
-            double inv = 1.0 / norm;
+            scalar inv = 1.0 / norm;
             for (k = 0; k < bs; k++)
                 q[i*bs + k] *= inv;
         }
     }
 }
 
-static double dot(int bs, const double *x, const double *y)
+static scalar dot(int bs, const scalar *x, const scalar *y)
 {
-    double s = 0.0;
+    scalar s = 0.0;
     for (int k = 0; k < bs; k++) s += x[k] * y[k];
     return s;
 }
 
 void q_dots(int n, int bs,
-                  const double *q,
-                  double *v,      /* size n * bs */
-                  double *out)      /* size n */
+                  const scalar *q,
+                  scalar *v,      /* size n * bs */
+                  scalar *out)      /* size n */
 {
     for (int i = 0; i < n; i++) {
         out[i] = dot(bs, &q[i*bs], &v[i*bs]);
@@ -446,9 +448,9 @@ void q_dots(int n, int bs,
 }
 
 void q_products(int n, int bs,
-                  const double *q,
-                  double *v,      /* size n  */
-                  double *out)      /* size n * bs */
+                  const scalar *q,
+                  scalar *v,      /* size n  */
+                  scalar *out)      /* size n * bs */
 {
     for (int i = 0; i < n; i++) {
         int idx = i*3;
@@ -469,21 +471,21 @@ void q_products(int n, int bs,
  */
 void form_QT_A_Q_tridiag(
     int n, int bs,
-    const double *Asub,   /* size n, use indices 1..n-1 */
-    const double *Adiag,  /* size n */
-    const double *q,      /* size n*bs */
-    double *Msub,         /* size n, use 1..n-1 */
-    double *Mdiag         /* size n */
+    const scalar *Asub,   /* size n, use indices 1..n-1 */
+    const scalar *Adiag,  /* size n */
+    const scalar *q,      /* size n*bs */
+    scalar *Msub,         /* size n, use 1..n-1 */
+    scalar *Mdiag         /* size n */
 ) {
     /* diagonal */
     for (int i = 0; i < n; i++) {
-        double s0 = dot(bs, &q[i*bs], &q[i*bs]);   /* q_i · q_i */
+        scalar s0 = dot(bs, &q[i*bs], &q[i*bs]);   /* q_i · q_i */
         Mdiag[i] = Adiag[i] * s0;
     }
 
     /* sub/super */
     for (int i = 1; i < n; i++) {
-        double s1 = dot(bs, &q[i*bs], &q[(i-1)*bs]); /* q_i · q_{i-1} */
+        scalar s1 = dot(bs, &q[i*bs], &q[(i-1)*bs]); /* q_i · q_{i-1} */
         Msub[i] = Asub[i] * s1;
     }
 }
@@ -508,10 +510,10 @@ void form_QT_A_Q_tridiag(
  */
 int cholesky(
     int n,
-    const double *Ad,
-    const double *Al,
-    double *Ld,
-    double *Ll
+    const scalar *Ad,
+    const scalar *Al,
+    scalar *Ld,
+    scalar *Ll
 ) {
     if (n <= 0) return -1;
     if (Ad[0] <= 0.0) return -1;
@@ -522,7 +524,7 @@ int cholesky(
     for (int i = 1; i < n; i++) {
         Ll[i] = Al[i] / Ld[i-1];
 
-        double t = Ad[i] - Ll[i]*Ll[i];
+        scalar t = Ad[i] - Ll[i]*Ll[i];
         if (t <= 0.0) return -1;
 
         Ld[i] = sqrt(t);
@@ -542,12 +544,12 @@ int cholesky(
  */
 void D1_LD2LT(
     int n,
-    const double *Ld,
-    const double *Ll,
-    const double *D1,
-    const double *D2,
-    double *Ad,
-    double *Al
+    const scalar *Ld,
+    const scalar *Ll,
+    const scalar *D1,
+    const scalar *D2,
+    scalar *Ad,
+    scalar *Al
 ) {
     Al[0]  = 0.0;
     Ad[0] = D1[0] + Ld[0]*Ld[0] * D2[0];
@@ -561,12 +563,12 @@ void D1_LD2LT(
 /* A = D1 + L^T D2 L */
 void D1_LTD2L(
     int n,
-    const double *Ld,   /* L diagonal */
-    const double *Ll,   /* L subdiag, Ll[0]=0 */
-    const double *D1,
-    const double *D2,
-    double *Ad,         /* A diagonal */
-    double *Al          /* A subdiag, Al[0]=0 */
+    const scalar *Ld,   /* L diagonal */
+    const scalar *Ll,   /* L subdiag, Ll[0]=0 */
+    const scalar *D1,
+    const scalar *D2,
+    scalar *Ad,         /* A diagonal */
+    scalar *Al          /* A subdiag, Al[0]=0 */
 ) {
     Al[0] = 0.0;
 
@@ -586,81 +588,85 @@ void D1_LTD2L(
 
 #include <stdio.h>
 
-void trace( int n, double *p, const char * name ){
-    if(0)
+void trace( int n, const scalar *p, const char * name ){
+    if(1)
     for (int i = 0; i < n; i++) {
-        printf("%s[%d] = %1.2f\n", name, i, p[i]);
+        printf("%s[%d] = %1.6f\n", name, i, p[i]);
     }
 }
 
-void set( int n, double *p, double v) {
+void set( int n, scalar *p, scalar v) {
     for (int i = 0; i < n; i++) {
         p[i] = v;
     }
 }
 
-void sum( int n, double *p, double *p2, double *v) {
+void sum( int n, scalar *p, scalar *p2, scalar *v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] + p2[i];
     }
 }
 
-void sub( int n, double *p, double *p2, double *v) {
+void sub( int n, const scalar *p, const scalar *p2, scalar *v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] - p2[i];
     }
 }
 
-void max( int n, double *p, double m, double *v) {
+void mul( int n, scalar *p, scalar *p2, scalar *v) {
+    for (int i = 0; i < n; i++) {
+        v[i] = p[i] * p2[i];
+    }
+}
+
+void max( int n, scalar *p, scalar m, scalar *v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] > m ? p[i] : m;
     }
 }
 
-void squared_norm( int n, double *p, double *v) {
+void squared_norm( int n, scalar *p, scalar *v) {
     *v =0;
     for (int i = 0; i < n; i++) {
         *v += p[i]*p[i];
     }
-
 }
 
-int main() {
-    const int N = 1024*8;
+
+#include <time.h>
+static inline double wtime(void) {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return ts.tv_sec + ts.tv_nsec * 1e-9;
+}
+
+
+int solve( const int N, const scalar* p, scalar* x) {
+    double t0 = wtime();
     const int M = N-1;
-    double zero[N*3] = {};
-    double ones[N*3]; set(N*3, ones, 1);
-    double Rd[N]; set(N, Rd, -1); Rd[N-1] = 0;
-    double Ru[N]; set(N, Ru, 1); Ru[0] = 1;
+    scalar zero[N*3] = {};
+    scalar ones[N*3]; set(N*3, ones, 1);
+    scalar Rd[N]; set(N, Rd, -1); //Rd[N-1] = 0;
+    scalar Ru[N]; set(N, Ru, 1); //Ru[0] = 0;
 
-    double Md[N]; set(N, Md, 2);
-
-    double p[N*3] = {};
-    for (int i = 0; i < N; ++i) {
-        p[i * 3] = i;
-        p[i * 3+1] = 0;
-        p[i * 3+2] = 0;
-    }
-    p[0] -= 12.1;
-    p[1] -= 3.1;
-
-    p[(N-1)*3] += 12.1;
-    p[(N-1)*3+1] += 3.1;
-
-    double z[N*3] = {};
+    scalar Md[N]; set(N, Md, 1000);
+    Md[1] = 1;
+    trace(N, Md, "Md");
 
 
-    double Ad[N] = {};
-    double Au[N] = {};
+    scalar z[M*3] = {};
+    scalar Ad[N] = {};
+    scalar Au[N] = {};
 
-    D1_LTD2L(N, Rd, Ru, zero, Md, Ad, Au );
-    trace(M, Ad, "A diag" );
-    trace(M, Au, "A upper" );
+    D1_LTD2L(M, Rd, Ru, zero, Md, Ad, Au );
+    trace(N, Ad, "A diag" );
+    trace(N, Au, "A upper" );
 
-    double Ld[M] = {};
-    double Ll[M] = {};
+    scalar Ld[M] = {};
+    scalar Ll[M] = {};
 
-    cholesky(M, Ad, Au, Ld, Ll );
+    int r = cholesky(M, Ad, Au, Ld, Ll );
+    printf("chol = %d\n", r);
 
     trace(M, Ld, "L diag" );
     trace(M, Ll, "L lower" );
@@ -672,14 +678,16 @@ int main() {
 
 
     //z = Rp
-    double Rp[N*3] = {};
-    block_upper_tridiag_mv( N, 3, Rd, Ru, p, Rp);
-    sum( N*3, Rp, zero, z); // z=Rp
+    scalar Rp[N*3] = {};
+    upper_bidiag_block_mul( N, 3, Rd, Ru, p, Rp);
+    //block_upper_tridiag_mv( N, 3, Rd, Ru, x, z); // z=Rx
+    sum( M*3, Rp, zero, z); // z=Rp
+    trace(M*3, Rp, "Rp");
     trace(N*3, p, "p");
     //trace(M*3, z, "z");
 
     // iters
-    for (int j=0; j<5; j++)
+    for (int j=0;; j++)
     {
         // normalize
         normalize_q( M, 3, z);
@@ -687,10 +695,10 @@ int main() {
         trace(M*3, z, "z");
 
         // solve lambda
-        double lamb[M] = {};
+        scalar lamb[M] = {};
         {
-            double Sd[M] = {};
-            double Su[M] = {};
+            scalar Sd[M] = {};
+            scalar Su[M] = {};
 
             // Q L LT QT
             form_QT_A_Q_tridiag( M, 3, Au, Ad, z, Su, Sd );
@@ -698,7 +706,7 @@ int main() {
             trace(M, Sd, "Sd");
             trace(M, Su, "Su");
 
-            double rhs[M] = {};
+            scalar rhs[M] = {};
 
             // Q(Rp-z)
             q_dots(M, 3, z, Rp, rhs);
@@ -711,9 +719,9 @@ int main() {
         }
 
         //bz
-        double bz[M*3];
+        scalar bz[M*3];
         {
-            double rhs[M*3] = {};
+            scalar rhs[M*3] = {};
             sub(M*3, Rp, z, rhs);
             trace( M*3, rhs, "rhs");
             lower_bidiag_block_solve(M, 3, Ld, Ll, rhs, bz);
@@ -721,27 +729,45 @@ int main() {
         }
 
         //bl
-       double bl[M*3] = {};
+       scalar bl[M*3] = {};
        {
-            double tmp[M*3] = {};
+            scalar tmp[M*3] = {};
             q_products( M, 3, z, lamb, tmp);
             upper_bidiag_block_mul( M, 3, Ld, Ll, tmp, bl);
             trace( M*3, bl, "bl");
        }
 
        //dz step
-       double dz[M*3] = {};
+       scalar dz[M*3] = {};
        {
-            double rhs[M*3];
-            double tmp[M*3];
+            scalar rhs[M*3];
+            scalar tmp[M*3];
             sub( M*3, bz, bl, rhs);
             trace( M*3, rhs, "rhs");
-            double e;
+            scalar e;
             squared_norm(M*3, rhs, &e);
             printf("e=%f\n", e);
 
-            double Sd[M] = {};
-            double Su[M] = {};
+
+            //exit
+            if (j>5)
+            {
+                scalar rhs2[N*3] = {};
+                scalar Ltinvbz_pad[N*3] = {};
+                upper_bidiag_block_solve(M, 3, Ld, Ll, bz, Ltinvbz_pad);
+                trace( N*3, Ltinvbz_pad, "LTinv bz");
+                lower_bidiag_block_mul( N, 3, Rd, Ru, Ltinvbz_pad, rhs2 );
+                trace( N*3, rhs2, "RT LTinv bz");
+                lower_bidiag_block_mul( N, 3, Md, zero, rhs2, rhs2);
+                trace( N*3, rhs2, "M RT LTinv bz");
+                sub( N*3, p, rhs2, x);
+                double t1 = wtime();
+                printf("time=%f\n", t1-t0 );
+                return 0;
+            }
+
+            scalar Sd[M] = {};
+            scalar Su[M] = {};
             //dz =  L2.dot( scipy.linalg.solve( 1*np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2)) , bz-bl, assume_a="banded"))
             //
             max( M, lamb, 0, lamb);
@@ -758,6 +784,36 @@ int main() {
 
     }
 
+    // return
+            /*if ((e < 1e-15 or i==maxiter-1) and i!=0 ):*/
+            /*print(f"solve_power converged at iter {i} with {e}")*/
+            /*# get back to x*/
+            /*s = scipy.linalg.solve(L2.T, bz, assume_a='upper triangular' )*/
+            /*x = p-Mi.dot(R.T.dot(s))*/
+            /*return x, z*/
+    //for (int i =0; i<M*3; i++) {
+    //
+    //}
+    //set( M*3, z,
 
+    return 0;
 }
 
+int main() {
+    enum { N = 1024*16};
+    scalar p[N*3] = {};
+    scalar x[N*3] = {};
+
+    for (int i = 0; i < N; ++i) {
+        p[i * 3] = (float)i*1;
+        p[i * 3+1] = 0;
+        p[i * 3+2] = 0;
+    }
+    p[0] -= 31.1;
+    p[1] -= 213.1;
+    p[2] -= 1321.1;
+
+    p[(N-1)*3] += 12.1;
+    //p[(N-1)*3+1] += 3.1;
+    solve( N, p, x);
+}
