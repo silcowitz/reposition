@@ -23,7 +23,7 @@ def setup( m ):
 
     for i in range(P):
         Mi[i*3:(i+1)*3,i*3:(i+1)*3] = np.eye(3) * ( (1/m[i]) if m[i] > 0.0 else 0.0)
-    #Mi /= np.linalg.norm( np.diag(Mi))
+    #Mi /= np.linalg.norm( Mi)
     print(Mi)
 
     print(R.dot(R.T))
@@ -65,6 +65,7 @@ def solve( p, Mi, R, L2, maxiter = 8, pre_z = None):
 
         # solve lambda
         lamb = scipy.linalg.solve( Q.dot(L2.dot(L2.T)).dot(Q.T), Q.dot(R.dot(p)-z), assume_a="tridiagonal"  )
+        #print(np.linalg.eigh(Q.dot(L2.dot(L2.T)).dot(Q.T)))
         #print(L2.T.dot(Q.T))
         #print(L2.dot(L2.T))
 
@@ -74,7 +75,7 @@ def solve( p, Mi, R, L2, maxiter = 8, pre_z = None):
         bz = scipy.linalg.solve( L2, R.dot(p)-z, assume_a="lower triangular" )
         bl = L2.T.dot(Q.T).dot(lamb)
         e = np.linalg.norm(bz-bl)**2
-        #print(bz)
+        print(e)
 
         if ((e < 1e-15 or i==maxiter-1) and i!=0 ):
             print(f"solve_power converged at iter {i} with {e}")
@@ -85,6 +86,8 @@ def solve( p, Mi, R, L2, maxiter = 8, pre_z = None):
 
         # newton step
         dz =  L2.dot( scipy.linalg.solve( 1*np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2)) , bz-bl, assume_a="banded"))
-        #print(np.linalg.eigh( np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2))))
+        #print(dz)
+        print(np.diag( np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2)), 0)[::3][-5:])
+        print(np.diag( np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2)), -3)[::3][-5:])
         z += dz
 

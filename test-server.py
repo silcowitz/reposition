@@ -24,7 +24,7 @@ async def handler(ws):
         try:
             print('running')
             N = 128
-            Mi, R, L2 = solve.setup([1.0 if n==N-2 or n==int(N*.8) else 1.0 for n in range(N)])
+            Mi, R, L2 = solve.setup([1.0 if n==N-1 or n==0 else 0.001 for n in range(N)])
             x0 = np.zeros((N*3,1))
             delta = np.array([-1.0,0.0,0.0])
             delta /= np.linalg.norm(delta)
@@ -34,8 +34,8 @@ async def handler(ws):
                 x0[j*3:(j+1)*3,0] = np.array([6,-7,0]) + delta * j
 
             fix1 = x0[0:3,0].copy()
-            fidx = N//2
-            fix2 = x0[(fidx-1)*3:(fidx*3),0].copy()
+            fidx = N-1
+            fix2 = x0[(fidx)*3:(fidx+1)*3,0].copy()
 
 
             #x0 = np.array([[float(n),0,0.0] for n in range(N)]).reshape(-1,1)
@@ -57,15 +57,24 @@ async def handler(ws):
                 #for j in range(N):
                 #    p[j*3:(j+1)*3,0] += np.random.uniform(-0.01, 0.01, (3,))
 
-                p[0:3,0] = fix1
-                #p[(fidx-1)*3:(fidx)*3,0] = fix2
+                #p[0:3,0] = fix1
+                p[(fidx)*3:(fidx+1)*3,0] = fix2
 
                 x0[:] = x
-                y, z = solve.solve(p, Mi, R, L2, maxiter=5, pre_z = z)
 
                 reposition.solve2( p[:,0], x[:,0] )
 
-                print(x-y)
+                if False:
+                    y, z = solve.solve(p, Mi, R, L2, maxiter=5, pre_z = z)
+                    e = np.linalg.norm(x-y)**2
+                    print(e)
+                    if e>0.1:
+                        print(p)
+                        np.save('x0.npy', x0)
+                        np.save('p.npy', p)
+                        exit(-1)
+
+
                 msg = ""
                 for i in range(0,N):
                     v1,v2,v3 = [ f"{float(v):.3f}" for v in (x[i*3:i*3+3]*0.1).flatten() ]

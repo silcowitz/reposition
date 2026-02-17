@@ -74,6 +74,7 @@ int sym_tridiag_block_solve_direct(
     const scalar *B,
     scalar *X
 ) {
+    const scalar eps = 1.0e-7;
     /* workspace for modified diagonal */
     scalar D[n];
 
@@ -81,7 +82,7 @@ int sym_tridiag_block_solve_direct(
 
     /* i = 0 */
     D[0] = Ad[0];
-    if (D[0] == 0.0) return -1;
+    if (D[0]*D[0] < eps ) return -1;
 
     for (int k = 0; k < bs; k++)
         X[k] = B[k];
@@ -90,7 +91,7 @@ int sym_tridiag_block_solve_direct(
     for (int i = 1; i < n; i++) {
         scalar ell = Al[i] / D[i - 1];
         D[i] = Ad[i] - ell * ell * D[i - 1];
-        if (D[i] == 0.0) return -1;
+        if (D[i]*D[i] < eps) return -1;
 
         int off  = i * bs;
         int offm = (i - 1) * bs;
@@ -574,6 +575,7 @@ void D1_LTD2L(
 
     for (int i = 0; i < n - 1; i++) {
         Al[i+1] = Ld[i+1] * Ll[i+1] * D2[i];
+        //Al[i+1] = Ld[i] * Ll[i+1] * D2[i];
         Ad[i]   = D1[i]
                 + Ld[i]*Ld[i] * D2[i]
                 + Ll[i+1]*Ll[i+1] * D2[i+1];
@@ -583,14 +585,52 @@ void D1_LTD2L(
     Ad[n-1] = D1[n-1] + Ld[n-1]*Ld[n-1] * D2[n-1];
 }
 
+void D1_LTD2L_2(
+    int n,
+    const scalar *Ld,
+    const scalar *Ll,
+    const scalar *D1,
+    const scalar *D2,
+    scalar *Ad,
+    scalar *Al
+) {
+    /* first row */
+    Al[0] = 0;
+
+    if (n == 0) return;
+
+    /* diagonal i = 0 */
+    Ad[0] = D1[0]
+          + D2[0] * Ld[0] * Ld[0];
+
+    if (n > 1) {
+        Ad[0] += D2[1] * Ll[1] * Ll[1];
+    }
+
+    /* rows 1..n-1 */
+    for (int i = 1; i < n; i++) {
+
+        /* subdiagonal */
+        //Al[i] = D2[i-1] * Ld[i-1] * Ll[i];
+        Al[i] = D2[i] * Ld[i] * Ll[i];
+        /* diagonal */
+        Ad[i] = D1[i]
+              + D2[i] * Ld[i] * Ld[i];
+
+        if (i < n-1) {
+            Ad[i] += D2[i+1] * Ll[i+1] * Ll[i+1];
+        }
+    }
+}
+
 
 
 
 #include <stdio.h>
 
 void trace( int n, const scalar *p, const char * name ){
-    if(1)
-    for (int i = 0; i < n; i++) {
+    if(0)
+    for (int i = n-5; i < n; i++) {
         printf("%s[%d] = %1.6f\n", name, i, p[i]);
     }
 }
@@ -647,20 +687,24 @@ int solve( const int N, const scalar* p, scalar* x) {
     scalar zero[N*3] = {};
     scalar ones[N*3]; set(N*3, ones, 1);
     scalar Rd[N]; set(N, Rd, -1); //Rd[N-1] = 0;
-    scalar Ru[N]; set(N, Ru, 1); //Ru[0] = 0;
+    scalar Ru[N]; set(N, Ru, 1); Ru[0] = 0;
 
     scalar Md[N]; set(N, Md, 1000);
-    Md[1] = 1;
-    trace(N, Md, "Md");
+    Md[0] = 1;
+    Md[N-1] = 1;
+    //trace(N, Md, "Md");
 
 
     scalar z[M*3] = {};
     scalar Ad[N] = {};
     scalar Au[N] = {};
 
-    D1_LTD2L(M, Rd, Ru, zero, Md, Ad, Au );
-    trace(N, Ad, "A diag" );
-    trace(N, Au, "A upper" );
+    //D1_LTD2L(N, Rd, Ru, zero, Md, Ad, Au );
+    sum( M, Md, &Md[1], Ad);
+    sub( M-1, zero, &Md[1], &Au[1]);
+
+    //trace(N, Ad, "A diag" );
+    //trace(N, Au, "A upper" );
 
     scalar Ld[M] = {};
     scalar Ll[M] = {};
@@ -668,8 +712,8 @@ int solve( const int N, const scalar* p, scalar* x) {
     int r = cholesky(M, Ad, Au, Ld, Ll );
     printf("chol = %d\n", r);
 
-    trace(M, Ld, "L diag" );
-    trace(M, Ll, "L lower" );
+    //trace(M, Ld, "L diag" );
+    //trace(M, Ll, "L lower" );
 
 
     //D1_LD2LT(N-1, c1, c2, zero, m, out1, out2 );
@@ -682,8 +726,8 @@ int solve( const int N, const scalar* p, scalar* x) {
     upper_bidiag_block_mul( N, 3, Rd, Ru, p, Rp);
     //block_upper_tridiag_mv( N, 3, Rd, Ru, x, z); // z=Rx
     sum( M*3, Rp, zero, z); // z=Rp
-    trace(M*3, Rp, "Rp");
-    trace(N*3, p, "p");
+    //trace(M*3, Rp, "Rp");
+    //trace(N*3, p, "p");
     //trace(M*3, z, "z");
 
     // iters
@@ -692,7 +736,7 @@ int solve( const int N, const scalar* p, scalar* x) {
         // normalize
         normalize_q( M, 3, z);
 
-        trace(M*3, z, "z");
+        //trace(M*3, z, "z");
 
         // solve lambda
         scalar lamb[M] = {};
@@ -703,18 +747,18 @@ int solve( const int N, const scalar* p, scalar* x) {
             // Q L LT QT
             form_QT_A_Q_tridiag( M, 3, Au, Ad, z, Su, Sd );
 
-            trace(M, Sd, "Sd");
-            trace(M, Su, "Su");
+            //trace(M, Sd, "Sd");
+            //trace(M, Su, "Su");
 
             scalar rhs[M] = {};
 
             // Q(Rp-z)
             q_dots(M, 3, z, Rp, rhs);
             sub(M, rhs, ones, rhs);
-            trace( M, rhs, "rhs");
+            //trace( M, rhs, "rhs");
             sym_tridiag_solve(M, Sd, Su, rhs, lamb);
 
-            trace( M, lamb, "lamb");
+            //trace( M, lamb, "lamb");
 
         }
 
@@ -723,9 +767,9 @@ int solve( const int N, const scalar* p, scalar* x) {
         {
             scalar rhs[M*3] = {};
             sub(M*3, Rp, z, rhs);
-            trace( M*3, rhs, "rhs");
+            //trace( M*3, rhs, "rhs");
             lower_bidiag_block_solve(M, 3, Ld, Ll, rhs, bz);
-            trace( M*3, bz, "bz");
+            //trace( M*3, bz, "bz");
         }
 
         //bl
@@ -734,7 +778,7 @@ int solve( const int N, const scalar* p, scalar* x) {
             scalar tmp[M*3] = {};
             q_products( M, 3, z, lamb, tmp);
             upper_bidiag_block_mul( M, 3, Ld, Ll, tmp, bl);
-            trace( M*3, bl, "bl");
+            //trace( M*3, bl, "bl");
        }
 
        //dz step
@@ -743,38 +787,41 @@ int solve( const int N, const scalar* p, scalar* x) {
             scalar rhs[M*3];
             scalar tmp[M*3];
             sub( M*3, bz, bl, rhs);
-            trace( M*3, rhs, "rhs");
+            //trace( M*3, rhs, "rhs");
             scalar e;
             squared_norm(M*3, rhs, &e);
             printf("e=%f\n", e);
 
 
             //exit
-            if (j>5)
+            if (e < 1.0e-15 || j>4 )
             {
                 scalar rhs2[N*3] = {};
                 scalar Ltinvbz_pad[N*3] = {};
                 upper_bidiag_block_solve(M, 3, Ld, Ll, bz, Ltinvbz_pad);
-                trace( N*3, Ltinvbz_pad, "LTinv bz");
+                //trace( N*3, Ltinvbz_pad, "LTinv bz");
                 lower_bidiag_block_mul( N, 3, Rd, Ru, Ltinvbz_pad, rhs2 );
-                trace( N*3, rhs2, "RT LTinv bz");
+                //trace( N*3, rhs2, "RT LTinv bz");
                 lower_bidiag_block_mul( N, 3, Md, zero, rhs2, rhs2);
-                trace( N*3, rhs2, "M RT LTinv bz");
+                //trace( N*3, rhs2, "M RT LTinv bz");
                 sub( N*3, p, rhs2, x);
                 double t1 = wtime();
                 printf("time=%f\n", t1-t0 );
                 return 0;
             }
 
+
             scalar Sd[M] = {};
             scalar Su[M] = {};
             //dz =  L2.dot( scipy.linalg.solve( 1*np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2)) , bz-bl, assume_a="banded"))
-            //
             max( M, lamb, 0, lamb);
-            D1_LTD2L(M, Ld, Ll, ones, lamb, Sd, Su );
-            sym_tridiag_block_solve_direct(M, 3, Sd, Su, rhs, tmp);
+            D1_LTD2L_2(M, Ld, Ll, ones, lamb, Sd, Su );
+            trace( M, Sd, "Sd");
+            trace( M, Su, "Su");
+            int r2 = sym_tridiag_block_solve_direct(M, 3, Sd, Su, rhs, tmp);
+            //printf("solve = %d\n", r2);
             lower_bidiag_block_mul( M, 3, Ld, Ll, tmp, dz);
-            trace( M*3, dz, "dz");
+            //trace( M*3, dz, "dz");
        }
 
        // step
