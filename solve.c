@@ -341,13 +341,13 @@ void trace(int n, const scalar* p, const char* name) {
         }
 }
 
-void set(int n, scalar* p, scalar v) {
+void set(int n, scalar* p, const scalar v) {
     for (int i = 0; i < n; i++) {
         p[i] = v;
     }
 }
 
-void sum(int n, scalar* p, scalar* p2, scalar* v) {
+void sum(int n, const scalar* p, const scalar* p2, scalar* v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] + p2[i];
     }
@@ -359,41 +359,49 @@ void sub(int n, const scalar* p, const scalar* p2, scalar* v) {
     }
 }
 
-void mul(int n, scalar* p, scalar* p2, scalar* v) {
+void mul(int n, const scalar* p, const scalar* p2, scalar* v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] * p2[i];
     }
 }
 
-void max(int n, scalar* p, scalar m, scalar* v) {
+void div(int n,  const scalar* p, const scalar* p2, scalar* v) {
+    for (int i = 0; i < n; i++) {
+        v[i] = p[i] / p2[i];
+    }
+}
+
+void max(int n, const scalar* p, const scalar m, scalar* v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] > m ? p[i] : m;
     }
 }
 
-void squared_norm(int n, scalar* p, scalar* v) {
+void squared_norm(int n, const scalar* p, scalar* v) {
     *v = 0;
     for (int i = 0; i < n; i++) {
         *v += p[i] * p[i];
     }
 }
 
-int solve(const int N, const scalar* p, scalar* x) {
+int solve(const int N, const scalar* p, const scalar* m, scalar* x) {
     double t0 = wtime();
     const int M = N - 1;
     scalar zero[N * 3] = {};
     scalar ones[N * 3];
     set(N * 3, ones, 1);
+    // R
     scalar Rd[N];
-    set(N, Rd, -1);  // Rd[N-1] = 0;
+    set(N, Rd, -1);
     scalar Ru[N];
     set(N, Ru, 1);
     Ru[0] = 0;
 
+    // M inv
     scalar Md[N];
-    set(N, Md, 1000);
-    Md[0] = 1;
-    Md[N - 1] = 1;
+    div(N, ones, m, Md);
+    //Md[0] = 1;
+    //Md[N - 1] = 1;
     // trace(N, Md, "Md");
 
     scalar z[M * 3] = {};
@@ -524,8 +532,10 @@ int main() {
     enum { N = 1024 * 16 };
     scalar p[N * 3] = {};
     scalar x[N * 3] = {};
+    scalar m[N] = {};
 
     for (int i = 0; i < N; ++i) {
+        m[i] = 1;
         p[i * 3] = (float)i * 1;
         p[i * 3 + 1] = 0;
         p[i * 3 + 2] = 0;
@@ -536,5 +546,5 @@ int main() {
 
     p[(N - 1) * 3] += 12.1;
     // p[(N-1)*3+1] += 3.1;
-    solve(N, p, x);
+    solve(N, p, m, x);
 }

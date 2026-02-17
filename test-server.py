@@ -24,7 +24,8 @@ async def handler(ws):
         try:
             print('running')
             N = 128
-            Mi, R, L2 = solve.setup([1.0 if n==N-1 or n==0 else 0.001 for n in range(N)])
+            m = [1.0 if n==N-1 or n==0 else 0.001 for n in range(N)]
+            Mi, R, L2 = solve.setup(m)
             x0 = np.zeros((N*3,1))
             delta = np.array([-1.0,0.0,0.0])
             delta /= np.linalg.norm(delta)
@@ -62,7 +63,7 @@ async def handler(ws):
 
                 x0[:] = x
 
-                reposition.solve2( p[:,0], x[:,0] )
+                reposition.solve2( p[:,0], m,  x[:,0] )
 
                 if False:
                     y, z = solve.solve(p, Mi, R, L2, maxiter=5, pre_z = z)
