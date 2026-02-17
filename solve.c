@@ -1,6 +1,14 @@
 #include "solve.h"
 
 #include <math.h>
+#include <stdio.h>
+#include <time.h>
+
+static inline double wtime(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec * 1e-9;
+}
 
 /* Solve A x = b for symmetric tridiagonal SPD A
  *
@@ -107,52 +115,6 @@ int sym_tridiag_block_solve_direct(int n, int bs, const scalar* Ad,
     return 0;
 }
 
-void block_lower_tridiag_solve(int n, int bs, const scalar* a, const scalar* b,
-                               scalar* d) {
-    int i, k;
-
-    for (k = 0; k < bs; k++) d[k] /= b[0];
-
-    for (i = 1; i < n; i++) {
-        scalar inv = 1.0 / b[i];
-        for (k = 0; k < bs; k++) {
-            d[i * bs + k] = (d[i * bs + k] - a[i] * d[(i - 1) * bs + k]) * inv;
-        }
-    }
-}
-
-void block_upper_tridiag_solve(int n, int bs, const scalar* b, const scalar* c,
-                               scalar* d) {
-    int i, k;
-
-    for (k = 0; k < bs; k++) d[(n - 1) * bs + k] /= b[n - 1];
-
-    for (i = n - 2; i >= 0; i--) {
-        scalar inv = 1.0 / b[i];
-        for (k = 0; k < bs; k++) {
-            d[i * bs + k] = (d[i * bs + k] - c[i] * d[(i + 1) * bs + k]) * inv;
-        }
-    }
-}
-
-/* Solve L x = b
- *
- * L: lower bidiagonal
- *   Ld[0..n-1]  diagonal
- *   Ll[0]=0, Ll[i]=L[i,i-1]
- *
- * b: RHS
- * x: solution (may alias b)
- */
-void lower_bidiag_solve(int n, const scalar* Ld, const scalar* Ll,
-                        const scalar* b, scalar* x) {
-    x[0] = b[0] / Ld[0];
-
-    for (int i = 1; i < n; i++) {
-        x[i] = (b[i] - Ll[i] * x[i - 1]) / Ld[i];
-    }
-}
-
 /* Solve L X = B
  *
  * L: lower bidiagonal with block-identity structure
@@ -240,74 +202,6 @@ void upper_bidiag_block_mul(int n, int bs, const scalar* Ld, const scalar* Ll,
         }
     }
 }
-
-void block_lower_tridiag_mv(int n, int bs, const scalar* a, const scalar* b,
-                            const scalar* x, scalar* y) {
-    int i, k;
-
-    for (k = 0; k < bs; k++) y[k] = b[0] * x[k];
-
-    for (i = 1; i < n; i++) {
-        for (k = 0; k < bs; k++) {
-            y[i * bs + k] = b[i] * x[i * bs + k] + a[i] * x[(i - 1) * bs + k];
-        }
-    }
-}
-
-void block_upper_tridiag_mv(int n, int bs, const scalar* b, const scalar* c,
-                            const scalar* x, scalar* y) {
-    int i, k;
-
-    // TODO move to bottom
-    for (k = 0; k < bs; k++)
-        y[(n - 1) * bs + k] = b[n - 1] * x[(n - 1) * bs + k];
-
-    for (i = 0; i < n - 1; i++) {
-        for (k = 0; k < bs; k++) {
-            y[i * bs + k] = b[i] * x[i * bs + k] + c[i] * x[(i + 1) * bs + k];
-        }
-    }
-}
-
-void tridiag_LU_to_tridiag(int n, const scalar* aL, const scalar* bL,
-                           const scalar* bU, const scalar* cU, scalar* a,
-                           scalar* b, scalar* c) {
-    int i;
-
-    for (i = 0; i < n; i++) {
-        b[i] = bL[i] * bU[i];
-        if (i > 0) {
-            a[i] = aL[i] * bU[i - 1];
-            b[i] += aL[i] * cU[i - 1];
-        }
-        if (i < n - 1) c[i] = bL[i] * cU[i];
-    }
-}
-
-/* Computes T = U * L, where
- * U is upper tridiagonal (bU, cU)
- * L is lower tridiagonal (aL, bL)
- *
- * Result T is tridiagonal (a, b, c)
- */
-void tridiag_UL_to_tridiag(int n, const scalar* bU, const scalar* cU,
-                           const scalar* aL, const scalar* bL, scalar* a,
-                           scalar* b, scalar* c) {
-    int i;
-
-    for (i = 0; i < n; i++) {
-        b[i] = bU[i] * bL[i];
-
-        if (i > 0) a[i] = bU[i] * aL[i];
-
-        if (i < n - 1) {
-            b[i] += cU[i] * aL[i + 1];
-            c[i] = cU[i] * bL[i + 1];
-        }
-    }
-}
-
-#include <math.h>
 
 void normalize_q(int n, int bs, scalar* q) {
     int i, k;
@@ -412,44 +306,6 @@ int cholesky(int n, const scalar* Ad, const scalar* Al, scalar* Ld,
     return 0;
 }
 
-/* A = L D L^T
- * L: lower bidiagonal with diag dL[0..n-1], subdiag ell[1..n-1] (ell[0] unused)
- * D: diagonal d[0..n-1]
- *
- * Output: symmetric tridiag in canonical form:
- *   Adiag[0..n-1]
- *   Asub[0]=0, Asub[i]=A[i,i-1] for i=1..n-1
- */
-void D1_LD2LT(int n, const scalar* Ld, const scalar* Ll, const scalar* D1,
-              const scalar* D2, scalar* Ad, scalar* Al) {
-    Al[0] = 0.0;
-    Ad[0] = D1[0] + Ld[0] * Ld[0] * D2[0];
-
-    for (int i = 1; i < n; i++) {
-        Al[i] = Ld[i - 1] * Ll[i] * D2[i - 1];
-        Ad[i] = D1[i] + Ld[i] * Ld[i] * D2[i] + Ll[i] * Ll[i] * D2[i - 1];
-    }
-}
-
-/* A = D1 + L^T D2 L */
-void D1_LTD2L(int n, const scalar* Ld, /* L diagonal */
-              const scalar* Ll,        /* L subdiag, Ll[0]=0 */
-              const scalar* D1, const scalar* D2, scalar* Ad, /* A diagonal */
-              scalar* Al /* A subdiag, Al[0]=0 */
-) {
-    Al[0] = 0.0;
-
-    for (int i = 0; i < n - 1; i++) {
-        Al[i + 1] = Ld[i + 1] * Ll[i + 1] * D2[i];
-        // Al[i+1] = Ld[i] * Ll[i+1] * D2[i];
-        Ad[i] =
-            D1[i] + Ld[i] * Ld[i] * D2[i] + Ll[i + 1] * Ll[i + 1] * D2[i + 1];
-    }
-
-    /* last diagonal */
-    Ad[n - 1] = D1[n - 1] + Ld[n - 1] * Ld[n - 1] * D2[n - 1];
-}
-
 void D1_LTD2L_2(int n, const scalar* Ld, const scalar* Ll, const scalar* D1,
                 const scalar* D2, scalar* Ad, scalar* Al) {
     /* first row */
@@ -477,8 +333,6 @@ void D1_LTD2L_2(int n, const scalar* Ld, const scalar* Ll, const scalar* D1,
         }
     }
 }
-
-#include <stdio.h>
 
 void trace(int n, const scalar* p, const char* name) {
     if (0)
@@ -524,13 +378,6 @@ void squared_norm(int n, scalar* p, scalar* v) {
     }
 }
 
-#include <time.h>
-static inline double wtime(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec + ts.tv_nsec * 1e-9;
-}
-
 int solve(const int N, const scalar* p, scalar* x) {
     double t0 = wtime();
     const int M = N - 1;
@@ -553,7 +400,7 @@ int solve(const int N, const scalar* p, scalar* x) {
     scalar Ad[N] = {};
     scalar Au[N] = {};
 
-    // D1_LTD2L(N, Rd, Ru, zero, Md, Ad, Au );
+    // A = R M RT
     sum(M, Md, &Md[1], Ad);
     sub(M - 1, zero, &Md[1], &Au[1]);
 
@@ -568,10 +415,6 @@ int solve(const int N, const scalar* p, scalar* x) {
 
     // trace(M, Ld, "L diag" );
     // trace(M, Ll, "L lower" );
-
-    // D1_LD2LT(N-1, c1, c2, zero, m, out1, out2 );
-    // trace(N-1, out1, "out1" );
-    // trace(N-1, out2, "out2" );
 
     // z = Rp
     scalar Rp[N * 3] = {};
@@ -660,10 +503,9 @@ int solve(const int N, const scalar* p, scalar* x) {
 
             scalar Sd[M] = {};
             scalar Su[M] = {};
-            // dz =  L2.dot( scipy.linalg.solve(
-            // 1*np.eye(L*3)+L2.T.dot(np.diag(D).dot(L2)) , bz-bl,
-            // assume_a="banded"))
+
             max(M, lamb, 0, lamb);
+            // S = I + LT D(lamb) L
             D1_LTD2L_2(M, Ld, Ll, ones, lamb, Sd, Su);
             trace(M, Sd, "Sd");
             trace(M, Su, "Su");
@@ -676,20 +518,6 @@ int solve(const int N, const scalar* p, scalar* x) {
         // step
         sum(M * 3, z, dz, z);
     }
-
-    // return
-    /*if ((e < 1e-15 or i==maxiter-1) and i!=0 ):*/
-    /*print(f"solve_power converged at iter {i} with {e}")*/
-    /*# get back to x*/
-    /*s = scipy.linalg.solve(L2.T, bz, assume_a='upper triangular' )*/
-    /*x = p-Mi.dot(R.T.dot(s))*/
-    /*return x, z*/
-    // for (int i =0; i<M*3; i++) {
-    //
-    // }
-    // set( M*3, z,
-
-    return 0;
 }
 
 int main() {
