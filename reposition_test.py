@@ -27,3 +27,4 @@ N = p.shape[0]//3
 Mi, R, L2 = solve.setup([ 0.001 if n>0 and n<N-1 else 1.0 for n in range(N) ])
 
 solve.solve(p.reshape(-1,1), Mi, R, L2, maxiter=2)
+
