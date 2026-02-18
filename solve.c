@@ -419,7 +419,7 @@ int solve(const int N, const scalar* p, const scalar* m, scalar* x) {
     scalar Ll[M] = {};
 
     int r = cholesky(M, Ad, Au, Ld, Ll);
-    printf("chol = %d\n", r);
+    //printf("chol = %d\n", r);
 
     // trace(M, Ld, "L diag" );
     // trace(M, Ll, "L lower" );
@@ -491,10 +491,10 @@ int solve(const int N, const scalar* p, const scalar* m, scalar* x) {
             // trace( M*3, rhs, "rhs");
             scalar e;
             squared_norm(M * 3, rhs, &e);
-            printf("e=%f\n", e);
+            //printf("e=%f\n", e);
 
             // exit
-            if (e < 1.0e-15 || j > 4) {
+            if (e < 1.0e-15 || j > 7) {
                 scalar rhs2[N * 3] = {};
                 scalar Ltinvbz_pad[N * 3] = {};
                 upper_bidiag_block_solve(M, 3, Ld, Ll, bz, Ltinvbz_pad);
@@ -505,7 +505,7 @@ int solve(const int N, const scalar* p, const scalar* m, scalar* x) {
                 // trace( N*3, rhs2, "M RT LTinv bz");
                 sub(N * 3, p, rhs2, x);
                 double t1 = wtime();
-                printf("time=%f\n", t1 - t0);
+                //printf("time=%f\n", t1 - t0);
                 return 0;
             }
 
