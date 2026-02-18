@@ -23,8 +23,8 @@ async def handler(ws):
     async def ticker():
         try:
             print('running')
-            N = 128
-            m = [1.0 if n==N-1 or n==0 else 0.001 for n in range(N)]
+            N = 256
+            m = np.array([1.0 if n==N-1+1 or n==0 or n==N//4 else 0.001 for n in range(N)])
             Mi, R, L2 = solve.setup(m)
             x0 = np.zeros((N*3,1))
             delta = np.array([-1.0,0.0,0.0])
@@ -58,7 +58,7 @@ async def handler(ws):
                 #for j in range(N):
                 #    p[j*3:(j+1)*3,0] += np.random.uniform(-0.01, 0.01, (3,))
 
-                #p[0:3,0] = fix1
+                p[0:3,0] = fix1
                 p[(fidx)*3:(fidx+1)*3,0] = fix2
 
                 x0[:] = x

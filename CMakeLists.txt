@@ -1,42 +1,57 @@
 cmake_minimum_required(VERSION 3.12)
 project(reposition)
 set(LIB_NAME reposition)
-
 set(Python_FIND_VIRTUALENV ONLY)
-find_package(Python REQUIRED COMPONENTS Interpreter Development)
+find_package(Python COMPONENTS Interpreter Development)
 
-execute_process(
-    COMMAND ${Python_EXECUTABLE} -c
-            "import numpy; print(numpy.get_include())"
-    OUTPUT_VARIABLE NUMPY_INCLUDE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+#python ext
+if(Python_FOUND)
+    execute_process(
+        COMMAND ${Python_EXECUTABLE} -c
+                "import numpy; print(numpy.get_include())"
+        OUTPUT_VARIABLE NUMPY_INCLUDE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
 
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/${LIB_NAME}.c
+        COMMAND ${Python_EXECUTABLE} -m cython
+            --module-name ${LIB_NAME}
+            ${CMAKE_SOURCE_DIR}/solve.pyx
+            -o ${CMAKE_BINARY_DIR}/${LIB_NAME}.c
+        DEPENDS ${CMAKE_SOURCE_DIR}/solve.pyx
+    )
 
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/${LIB_NAME}.c
-    COMMAND ${Python_EXECUTABLE} -m cython
-        --module-name ${LIB_NAME}
-        ${CMAKE_SOURCE_DIR}/solve.pyx
-        -o ${CMAKE_BINARY_DIR}/${LIB_NAME}.c
-    DEPENDS ${CMAKE_SOURCE_DIR}/solve.pyx
-)
+    add_library(${LIB_NAME} MODULE solve.c ${CMAKE_BINARY_DIR}/${LIB_NAME}.c)
+    target_include_directories(${LIB_NAME} PRIVATE ${Python_INCLUDE_DIRS})
+    target_include_directories(${LIB_NAME} PRIVATE ${NUMPY_INCLUDE})
+    target_include_directories(${LIB_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(${LIB_NAME} PRIVATE ${Python_LIBRARIES})
 
-add_library(${LIB_NAME} MODULE solve.c ${CMAKE_BINARY_DIR}/${LIB_NAME}.c)
-target_include_directories(${LIB_NAME} PRIVATE ${Python_INCLUDE_DIRS})
-target_include_directories(${LIB_NAME} PRIVATE ${NUMPY_INCLUDE})
-target_include_directories(${LIB_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(${LIB_NAME} PRIVATE ${Python_LIBRARIES})
+    #option(ENABLE_ASAN "Enable AddressSanitizer" ON)
+    #if(ENABLE_ASAN)
+    #    target_compile_options(${LIB_NAME} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+    #    target_link_options(${LIB_NAME} PRIVATE -fsanitize=address)
+    #endif()
 
-#option(ENABLE_ASAN "Enable AddressSanitizer" ON)
-#if(ENABLE_ASAN)
-#    target_compile_options(${LIB_NAME} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-#    target_link_options(${LIB_NAME} PRIVATE -fsanitize=address)
-#endif()
+    set_target_properties(${LIB_NAME} PROPERTIES
+        PREFIX "${Python_MODULE_PREFIX}"
+        SUFFIX ".${Python_SOABI}${CMAKE_SHARED_MODULE_SUFFIX}"
+    )
+endif()
 
-
-set_target_properties(${LIB_NAME} PROPERTIES
-    PREFIX "${Python_MODULE_PREFIX}"
-    SUFFIX ".${Python_SOABI}${CMAKE_SHARED_MODULE_SUFFIX}"
-)
-
+if(EMSCRIPTEN)
+    add_executable(reposition_wasm solve.c)
+    #target_compile_options(reposition_wasm PRIVATE -O3)
+    target_link_options(reposition_wasm PRIVATE
+        "-sEXPORTED_FUNCTIONS=['_solve', '_malloc', '_free']"
+        "-sEXPORTED_RUNTIME_METHODS=['HEAPU8']"
+        "-sMODULARIZE"
+        "-sINITIAL_MEMORY=256mb"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sSTACK_SIZE=16mb"
+        "-sEXPORT_ES6"
+        "-sENVIRONMENT=web,node"
+        "-sEXPORT_NAME=${LIB_NAME}"
+    )
+endif()
