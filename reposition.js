@@ -45,8 +45,9 @@ export async function useSolver(Nmax) {
         p.view.set(p_in);
         mass.view.set(m_in);
         x.view.set(x_in);
-        m._solve(N_in, p.ptr, mass.ptr, x.ptr);
+        let t = m._solve(N_in, p.ptr, mass.ptr, x.ptr);
         x_in.set(x.view.subarray(0, N_in*3));
+        return t;
     }
 
     return { solve };

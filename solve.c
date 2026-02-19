@@ -384,7 +384,7 @@ void squared_norm(int n, const scalar* p, scalar* v) {
     }
 }
 
-int solve(const int N, const scalar* p, const scalar* m, scalar* x) {
+scalar solve(const int N, const scalar* p, const scalar* m, scalar* x) {
     double t0 = wtime();
     const int M = N - 1;
     scalar zero[N * 3] = {};
@@ -506,7 +506,7 @@ int solve(const int N, const scalar* p, const scalar* m, scalar* x) {
                 sub(N * 3, p, rhs2, x);
                 double t1 = wtime();
                 //printf("time=%f\n", t1 - t0);
-                return 0;
+                return e;
             }
 
             scalar Sd[M] = {};
