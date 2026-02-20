@@ -1,31 +1,3 @@
-
-//const reposition = require("./build-wasm/reposition_wasm.js");
-
-//function allocf64(m, n) {
-//    const ptr = m._malloc(n * 8);
-//    const view = new Float64Array(m.HEAPU8.buffer, ptr, n);
-//    return { ptr, view };
-//}
-
-//async function main() {
-//    const m = await reposition();
-//    const N = 2;
-//    const p = allocf64(m,N*3);
-//    const mass = allocf64(m,N);
-//    const x = allocf64(m,N*3);
-
-//    p.view.set([5,0,0, 0,0,0])
-//    x.view.set([5,0,0, 0,0,0])
-//    mass.view.set([1,1])
-
-//    m._solve(N,p.ptr,mass.ptr,x.ptr);
-
-//    console.log(x)
-//}
-
-//main();
-
-
 import reposition from "./build-wasm/reposition_wasm.js";
 
 export async function useSolver(Nmax) {
