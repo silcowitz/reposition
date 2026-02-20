@@ -7,7 +7,7 @@
 static inline double wtime(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec + ts.tv_nsec * 1e-9;
+    return ts.tv_sec + ts.tv_nsec * 1e-6;
 }
 
 /* Solve A x = b for symmetric tridiagonal SPD A
@@ -384,7 +384,7 @@ void squared_norm(int n, const scalar* p, scalar* v) {
     }
 }
 
-scalar solve(const int N, const scalar* p, const scalar* m, scalar* x) {
+scalar solve(const int N, scalar tol, int max_iter, const scalar* p, const scalar* m, scalar* x, scalar* stats) {
     double t0 = wtime();
     const int M = N - 1;
     scalar zero[N * 3] = {};
@@ -494,7 +494,7 @@ scalar solve(const int N, const scalar* p, const scalar* m, scalar* x) {
             //printf("e=%f\n", e);
 
             // exit
-            if (e < 1.0e-15 || j > 7) {
+            if (e < tol || j >= max_iter ) {
                 scalar rhs2[N * 3] = {};
                 scalar Ltinvbz_pad[N * 3] = {};
                 upper_bidiag_block_solve(M, 3, Ld, Ll, bz, Ltinvbz_pad);
@@ -505,6 +505,9 @@ scalar solve(const int N, const scalar* p, const scalar* m, scalar* x) {
                 // trace( N*3, rhs2, "M RT LTinv bz");
                 sub(N * 3, p, rhs2, x);
                 double t1 = wtime();
+                stats[0] = t1-t0; // time
+                stats[1] = e; // error
+                stats[2] = j; // iterations
                 //printf("time=%f\n", t1 - t0);
                 return e;
             }
@@ -533,6 +536,7 @@ int main() {
     scalar p[N * 3] = {};
     scalar x[N * 3] = {};
     scalar m[N] = {};
+    scalar stats[8] = {};
 
     for (int i = 0; i < N; ++i) {
         m[i] = 1;
@@ -546,5 +550,5 @@ int main() {
 
     p[(N - 1) * 3] += 12.1;
     // p[(N-1)*3+1] += 3.1;
-    solve(N, p, m, x);
+    solve(N, 1.0e-15, 6,  p, m, x, stats);
 }

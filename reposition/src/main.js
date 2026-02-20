@@ -1,17 +1,18 @@
 import "./style.css";
 import javascriptLogo from "./javascript.svg";
 import viteLogo from "/vite.svg";
-import { setupCounter } from "./counter.js";
+//import { setupCounter } from "./counter.js";
 import { useSolver } from "@root/reposition.js";
 //import Stats from 'stats.js';
 import GUI from "lil-gui";
 
-const N = 1024*10;
+const N = 1024 * 2;
 const solver = await useSolver(N);
 const p = new Float64Array(N * 3);
 const x = new Float64Array(N * 3);
 const x0 = new Float64Array(N * 3);
 const m = new Float64Array(N);
+const stats = new Float64Array(8);
 
 function reset1() {
     for (let i = 0; i < N; i++) {
@@ -21,7 +22,7 @@ function reset1() {
         m[i] =
             i === 0 || i === N - 1 || i === N / 4 || i % (N / 4) === 0
                 ? 1
-                : 0.009;
+                : 0.001;
     }
     x0.set(x);
     p.set(x);
@@ -40,7 +41,7 @@ const camera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
     0.1,
-    1000
+    10000
 );
 const renderer = new THREE.WebGLRenderer();
 document.body.appendChild(renderer.domElement);
@@ -51,7 +52,7 @@ geometry.setPositions(vertices);
 
 const material = new LineMaterial({
     color: 0xffff00,
-    linewidth: 2,
+    linewidth: 2.3,
     vertexColors: true,
 });
 
@@ -130,6 +131,11 @@ grid.position.y = floor;
 scene.add(grid);
 console.log(instancedMesh.instanceColor);
 
+window.addEventListener("wheel", (event) => {
+    const scrollSpeed = 1.102;
+    camera.position.z += event.deltaY * scrollSpeed;
+});
+
 window.addEventListener("pointermove", (event) => {
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -175,9 +181,15 @@ const settings = {
     fps: 0,
     error: 0,
     solveTime: 0,
+    iters: 0,
+    max_iter: 15,
+    tol_exp: -7,
     gravity: true,
     momentum: true,
     floor: true,
+    mass_ratio: -3,
+    beads: 2,
+    fix: 0,
 };
 
 gui.add({ reset: reset1 }, "reset");
@@ -192,9 +204,15 @@ gui.add(settings, "solveTime", 0, 5)
     .decimals(3)
     .disable()
     .name("solve ms");
+gui.add(settings, "iters", 1, 64).listen().disable().name("solver iters");
+gui.add(settings, "tol_exp", -32, 0, 1);
+gui.add(settings, "max_iter", 1, 64, 1);
+gui.add(settings, "mass_ratio", -6, -1, 1).name("mass ratio exp");
 gui.add(settings, "gravity");
 gui.add(settings, "momentum");
 gui.add(settings, "floor");
+gui.add(settings, "beads", 2, 16, 1);
+gui.add(settings, "fix", { "end-points": 0, between: 1 });
 let single_step = false;
 
 function animate() {
@@ -203,15 +221,37 @@ function animate() {
     line.count = N;
     grid.visible = settings.floor;
 
+    //function f(i, D, N) {
+    //    return (i * (D - 1)) % (N - 1) === 0 ? true : false;
+    //}
+    function f(i, D, N) {
+        const step = (N - 1) / (D - 1);
+        return Math.floor(Math.round(i / step) * step) === i ? 1 : 0;
+    }
+
+    for (let i = 0; i < N; i++) {
+        const is_bead = f(i, settings.beads, N);
+        m[i] = is_bead ? 1.0 : Math.pow(10.0, settings.mass_ratio);
+    }
+
     // momentum plus gravity
-    for (let i = 3; i < p.length - 3; i++) {
+    for (let i = 0; i < N; i++) {
+        const is_bead = f(i, settings.beads, N);
         //let curvature= 0.6 * ((x[i - 3] + x[i + 3]) / 2 - x[i]);
-        p[i] =
-            x[i] +
-            (x[i] - x0[i]) * (settings.momentum ? 1.0 : 0.0) -
-            (settings.gravity ? 1.0 : 0.0) * (i % 3 === 1); //+ curvature;
-        if ((settings.floor ? 1 : 0) && i % 3 == 1) {
-            p[i] = p[i] < floor ? floor : p[i];
+        if (is_bead) {
+            if (settings.fix === 0 && (i == 0 || i == N - 1)) {
+                continue;
+            } else if (settings.fix == 1 && i > 0 && i < N - 1) {
+                continue;
+            }
+        }
+
+        for (let j = 0; j < 3; j++) {
+            const idx = i * 3 + j;
+            p[idx] =
+                x[idx] +
+                (x[idx] - x0[idx]) * (settings.momentum ? 1.0 : 0.0) -
+                (settings.gravity ? 1.0 : 0.0) * (j % 3 === 1); //+ curvature;
         }
     }
 
@@ -223,15 +263,31 @@ function animate() {
         p[drag_vert * 3 + 2] = drag_point.z;
     }
 
+    // floor
+    if (settings.floor) {
+        for (let i = 0; i < N; i++) {
+            p[i * 3 + 1] = p[i * 3 + 1] < floor ? floor : p[i * 3 + 1];
+        }
+    }
+
     if (play || single_step) {
         x0.set(x);
 
         const start = performance.now();
-        let t = solver.solve(m.length, p, m, x);
+        let t = solver.solve(
+            m.length,
+            Math.pow(10.0, settings.tol_exp),
+            settings.max_iter,
+            p,
+            m,
+            x,
+            stats
+        );
+        // stats: time, error, iters
         const end = performance.now();
-        settings.solveTime = end - start;
-
-        settings.error = t;
+        settings.solveTime = stats[0];
+        settings.error = stats[1];
+        settings.iters = stats[2];
         single_step = false;
     }
     vertices.set(x);
