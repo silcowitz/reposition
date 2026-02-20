@@ -4,10 +4,9 @@ import viteLogo from "/vite.svg";
 import { setupCounter } from "./counter.js";
 import { useSolver } from "@root/reposition.js";
 //import Stats from 'stats.js';
-import "beercss/dist/cdn/beer.min.css";
-import "beercss";
+import GUI from "lil-gui";
 
-const N = 1024;
+const N = 1024*10;
 const solver = await useSolver(N);
 const p = new Float64Array(N * 3);
 const x = new Float64Array(N * 3);
@@ -19,7 +18,10 @@ function reset1() {
         x[i * 3 + 0] = i * Math.cos(i * 0.1) * 0.1;
         x[i * 3 + 1] = i * Math.sin(i * 0.1) * 0.1;
         x[i * 3 + 2] = i * 0.01 - 250;
-        m[i] = i === 0 || i === N - 1 || i === N / 2 ? 1 : 0.00001;
+        m[i] =
+            i === 0 || i === N - 1 || i === N / 4 || i % (N / 4) === 0
+                ? 1
+                : 0.009;
     }
     x0.set(x);
     p.set(x);
@@ -111,7 +113,7 @@ const vertex = new THREE.Vector3();
 
 const sphereGeometry = new THREE.SphereGeometry(4.5, 64, 64);
 const sphereMaterial = new THREE.MeshBasicMaterial({
-    opacity: 0.3333,
+    opacity: 1.0,
     transparent: true,
 });
 const instancedMesh = new THREE.InstancedMesh(
@@ -133,7 +135,7 @@ window.addEventListener("pointermove", (event) => {
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
-    console.log(mouse);
+    //console.log(mouse);
 });
 
 renderer.domElement.addEventListener("pointerdown", (event) => {
@@ -158,98 +160,57 @@ renderer.domElement.addEventListener("pointerup", (event) => {
     console.log("Drag end");
 });
 
-function createToolbar() {
-    const nav = document.createElement("nav");
-    nav.className = "bottom";
-    nav.innerHTML = `
-    <button id="reset-button" class="square large border">
-      <i class="material-symbols-outlined"></i>
-    </button>
-    <button id="momentum-button" class="square large border">
-      <i class="material-symbols-outlined"></i>
-    </button>
-    <button id="gravity-button" class="square large border">
-      <i class="material-symbols-outlined"></i>
-    </button>
-    <button id="step-button" class="square large border">
-      <i class="material-symbols-outlined"></i>
-    </button>
-
-  `;
-
-    document.body.appendChild(nav);
-
-    return nav;
-}
-
-const toolbar = createToolbar();
-
-function makeIconToggle(name, iconA, iconB, onChange) {
-    const button = document.getElementById(name);
-    const icon = button.querySelector("i");
-    let state = false;
-    icon.textContent = state ? iconA : iconB;
-    button.addEventListener("click", () => {
-        state = !state;
-        icon.textContent = state ? iconA : iconB;
-        onChange(state);
-    });
-}
-
-makeIconToggle("reset-button", "replay", "replay", (v) => {
-    reset1();
+const gui = new GUI({
+    title: "Stats",
 });
 
-let momentum = 1.0;
-makeIconToggle("momentum-button", "slow", "speed", (v) => {
-    if (v) {
-        momentum = 1.0;
-    } else {
-        momentum = 0.93;
-    }
-});
+gui.domElement.style.position = "fixed";
+gui.domElement.style.bottom = "10px";
+gui.domElement.style.right = "10px";
+gui.domElement.style.top = "auto";
+gui.domElement.style.width = "auto";
 
-let gravity = 1.0;
-makeIconToggle("gravity-button", "rocket_launch", "falling", (v) => {
-    if (v) {
-        gravity = 1.0;
-    } else {
-        gravity = 0.0;
-    }
-});
+const settings = {
+    links: N - 1,
+    fps: 0,
+    error: 0,
+    solveTime: 0,
+    gravity: true,
+    momentum: true,
+    floor: true,
+};
 
+gui.add({ reset: reset1 }, "reset");
+gui.add(settings, "links").listen().disable();
+gui.add(settings, "error", 0, 1)
+    .listen()
+    .disable()
+    .decimals(2)
+    .name("solve error");
+gui.add(settings, "solveTime", 0, 5)
+    .listen()
+    .decimals(3)
+    .disable()
+    .name("solve ms");
+gui.add(settings, "gravity");
+gui.add(settings, "momentum");
+gui.add(settings, "floor");
 let single_step = false;
-makeIconToggle("step-button", "step", "step", (v) => {
-    single_step = true;
-});
-
-//var stats = new Stats();
-//const solverPanel = new Stats.Panel('Solve error', '#fff', '#222');
-//stats.addPanel(solverPanel);
-//stats.showPanel(3); // 0: fps, 1: ms, 2: mb, 3+: custom
-//Object.assign(stats.dom.style, {
-//  position: 'fixed',
-//  bottom: '10px',
-//  right: '10px',
-//  top: 'auto',
-//  left: 'auto'
-//});
-
-//document.body.appendChild(stats.dom);
-
-
 
 function animate() {
     requestAnimationFrame(animate);
 
-
-   // stats.begin();
+    line.count = N;
+    grid.visible = settings.floor;
 
     // momentum plus gravity
     for (let i = 3; i < p.length - 3; i++) {
         //let curvature= 0.6 * ((x[i - 3] + x[i + 3]) / 2 - x[i]);
-        p[i] = x[i] + (x[i] - x0[i]) * momentum - gravity * (i % 3 === 1); //+ curvature;
-        if (i % 3 == 1) {
+        p[i] =
+            x[i] +
+            (x[i] - x0[i]) * (settings.momentum ? 1.0 : 0.0) -
+            (settings.gravity ? 1.0 : 0.0) * (i % 3 === 1); //+ curvature;
+        if ((settings.floor ? 1 : 0) && i % 3 == 1) {
             p[i] = p[i] < floor ? floor : p[i];
         }
     }
@@ -264,8 +225,13 @@ function animate() {
 
     if (play || single_step) {
         x0.set(x);
+
+        const start = performance.now();
         let t = solver.solve(m.length, p, m, x);
-        //solverPanel.update(Math.min(t,1), 1)
+        const end = performance.now();
+        settings.solveTime = end - start;
+
+        settings.error = t;
         single_step = false;
     }
     vertices.set(x);
@@ -338,28 +304,6 @@ function animate() {
     instancedMesh.instanceColor.needsUpdate = true;
     instancedMesh.instanceMatrix.needsUpdate = true;
     renderer.render(scene, camera);
-
-    //stats.end();
 }
 
 animate();
-
-//document.querySelector('#app').innerHTML = `
-//  <div>
-//    <a href="https://vite.dev" target="_blank">
-//      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-//    </a>
-//    <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-//      <img src="${javascriptLogo}" class="logo vanilla" alt="JavaScript logo" />
-//    </a>
-//    <h1>Hello Vite!</h1>
-//    <div class="card">
-//      <button id="counter" type="button"></button>
-//    </div>
-//    <p class="read-the-docs">
-//      Click on the Vite logo to learn more
-//    </p>
-//  </div>
-//`
-
-//setupCounter(document.querySelector('#counter'))
