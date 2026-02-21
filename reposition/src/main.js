@@ -6,13 +6,30 @@ import { useSolver } from "@root/reposition.js";
 //import Stats from 'stats.js';
 import GUI from "lil-gui";
 
-const N = 1024 * 2;
+const N = 1024 * 16;
 const solver = await useSolver(N);
 const p = new Float64Array(N * 3);
 const x = new Float64Array(N * 3);
 const x0 = new Float64Array(N * 3);
 const m = new Float64Array(N);
 const stats = new Float64Array(8);
+
+const conf = {
+    links: N - 1,
+    fps: 0,
+    error: 0,
+    solveTime: 0,
+    iters: 0,
+    max_iter: 15,
+    tol_exp: -7,
+    gravity: true,
+    momentum: true,
+    floor: true,
+    mass_ratio: -3,
+    beads: 2,
+    fix: 0,
+    N: 1024
+};
 
 function reset1() {
     for (let i = 0; i < N; i++) {
@@ -132,7 +149,7 @@ scene.add(grid);
 console.log(instancedMesh.instanceColor);
 
 window.addEventListener("wheel", (event) => {
-    const scrollSpeed = 1.102;
+    const scrollSpeed = 1.0;
     camera.position.z += event.deltaY * scrollSpeed;
 });
 
@@ -176,50 +193,35 @@ gui.domElement.style.right = "10px";
 gui.domElement.style.top = "auto";
 gui.domElement.style.width = "auto";
 
-const settings = {
-    links: N - 1,
-    fps: 0,
-    error: 0,
-    solveTime: 0,
-    iters: 0,
-    max_iter: 15,
-    tol_exp: -7,
-    gravity: true,
-    momentum: true,
-    floor: true,
-    mass_ratio: -3,
-    beads: 2,
-    fix: 0,
-};
-
 gui.add({ reset: reset1 }, "reset");
-gui.add(settings, "links").listen().disable();
-gui.add(settings, "error", 0, 1)
+gui.add(conf, "N", 128, 1024*8, 1);
+gui.add(conf, "beads", 2, 16, 1);
+gui.add(conf, "fix", { "end-points": 0, between: 1 });
+gui.add(conf, "floor");
+gui.add(conf, "gravity");
+gui.add(conf, "momentum");
+gui.add(conf, "mass_ratio", -6, -1, 1).name("mass ratio exp");
+gui.add(conf, "tol_exp", -32, 0, 1);
+gui.add(conf, "max_iter", 1, 64, 1);
+gui.add(conf, "error", 0, 1)
     .listen()
     .disable()
     .decimals(2)
     .name("solve error");
-gui.add(settings, "solveTime", 0, 5)
+gui.add(conf, "solveTime", 0, 5)
     .listen()
     .decimals(3)
     .disable()
     .name("solve ms");
-gui.add(settings, "iters", 1, 64).listen().disable().name("solver iters");
-gui.add(settings, "tol_exp", -32, 0, 1);
-gui.add(settings, "max_iter", 1, 64, 1);
-gui.add(settings, "mass_ratio", -6, -1, 1).name("mass ratio exp");
-gui.add(settings, "gravity");
-gui.add(settings, "momentum");
-gui.add(settings, "floor");
-gui.add(settings, "beads", 2, 16, 1);
-gui.add(settings, "fix", { "end-points": 0, between: 1 });
+gui.add(conf, "iters", 1, 64).listen().disable().name("solver iters");
 let single_step = false;
 
 function animate() {
     requestAnimationFrame(animate);
 
-    line.count = N;
-    grid.visible = settings.floor;
+    //line.count = conf.N;
+    //geometry.setDrawRange(0,conf.N);
+    grid.visible = conf.floor;
 
     //function f(i, D, N) {
     //    return (i * (D - 1)) % (N - 1) === 0 ? true : false;
@@ -229,19 +231,19 @@ function animate() {
         return Math.floor(Math.round(i / step) * step) === i ? 1 : 0;
     }
 
-    for (let i = 0; i < N; i++) {
-        const is_bead = f(i, settings.beads, N);
-        m[i] = is_bead ? 1.0 : Math.pow(10.0, settings.mass_ratio);
+    for (let i = 0; i < conf.N; i++) {
+        const is_bead = f(i, conf.beads, conf.N);
+        m[i] = is_bead ? 1.0 : Math.pow(10.0, conf.mass_ratio);
     }
 
     // momentum plus gravity
-    for (let i = 0; i < N; i++) {
-        const is_bead = f(i, settings.beads, N);
+    for (let i = 0; i < conf.N; i++) {
+        const is_bead = f(i, conf.beads, conf.N);
         //let curvature= 0.6 * ((x[i - 3] + x[i + 3]) / 2 - x[i]);
         if (is_bead) {
-            if (settings.fix === 0 && (i == 0 || i == N - 1)) {
+            if (conf.fix === 0 && (i == 0 || i == conf.N - 1)) {
                 continue;
-            } else if (settings.fix == 1 && i > 0 && i < N - 1) {
+            } else if (conf.fix == 1 && i > 0 && i < conf.N - 1) {
                 continue;
             }
         }
@@ -250,8 +252,8 @@ function animate() {
             const idx = i * 3 + j;
             p[idx] =
                 x[idx] +
-                (x[idx] - x0[idx]) * (settings.momentum ? 1.0 : 0.0) -
-                (settings.gravity ? 1.0 : 0.0) * (j % 3 === 1); //+ curvature;
+                (x[idx] - x0[idx]) * (conf.momentum ? 1.0 : 0.0) -
+                (conf.gravity ? 1.0 : 0.0) * (j % 3 === 1); //+ curvature;
         }
     }
 
@@ -264,8 +266,8 @@ function animate() {
     }
 
     // floor
-    if (settings.floor) {
-        for (let i = 0; i < N; i++) {
+    if (conf.floor) {
+        for (let i = 0; i < conf.N; i++) {
             p[i * 3 + 1] = p[i * 3 + 1] < floor ? floor : p[i * 3 + 1];
         }
     }
@@ -275,9 +277,9 @@ function animate() {
 
         const start = performance.now();
         let t = solver.solve(
-            m.length,
-            Math.pow(10.0, settings.tol_exp),
-            settings.max_iter,
+            conf.N,
+            Math.pow(10.0, conf.tol_exp),
+            conf.max_iter,
             p,
             m,
             x,
@@ -285,13 +287,14 @@ function animate() {
         );
         // stats: time, error, iters
         const end = performance.now();
-        settings.solveTime = stats[0];
-        settings.error = stats[1];
-        settings.iters = stats[2];
+        conf.solveTime = stats[0];
+        conf.error = stats[1];
+        conf.iters = stats[2];
         single_step = false;
     }
     vertices.set(x);
     geometry.setPositions(vertices);
+    geometry.instanceCount = conf.N-1;
 
     if (false) {
         //update shadows
@@ -317,7 +320,7 @@ function animate() {
 
     let best = Infinity;
     let best_idx = -1;
-    for (let i = 0; i < N; i++) {
+    for (let i = 0; i < conf.N; i++) {
         if (m[i] === 1.0) {
             const ray = raycaster.ray;
             tmp_point.fromArray(vertices, i * 3);
@@ -335,7 +338,7 @@ function animate() {
     //instancedMesh.setMatrixAt(0, dummy.matrix);
 
     let j = 0;
-    for (let i = 0; i < N; i++) {
+    for (let i = 0; i < conf.N; i++) {
         if (m[i] === 1.0) {
             dummy.position.fromArray(vertices, i * 3);
             dummy.scale.set(1, 1, 1);
