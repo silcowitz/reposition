@@ -1,9 +1,7 @@
 import "./style.css";
 import javascriptLogo from "./javascript.svg";
 import viteLogo from "/vite.svg";
-//import { setupCounter } from "./counter.js";
 import { useSolver } from "@root/reposition.js";
-//import Stats from 'stats.js';
 import GUI from "lil-gui";
 
 const N = 1024 * 16;
@@ -72,22 +70,6 @@ const material = new LineMaterial({
     linewidth: 2.3,
     vertexColors: true,
 });
-
-// shadow
-const shadow_material = new LineMaterial({
-    color: 0x101010,
-    linewidth: 4,
-    transparent: true,
-    opacity: 0.2,
-});
-
-const shadow_geometry = new LineGeometry();
-const shadow_line = new Line2(shadow_geometry, shadow_material);
-shadow_geometry.setPositions(vertices);
-shadow_material.resolution.set(window.innerWidth, window.innerHeight);
-shadow_material.depthWrite = false;
-shadow_line.computeLineDistances();
-//scene.add(shadow_line);
 
 let pick_vert = -1;
 let drag_vert = -1;
@@ -158,7 +140,6 @@ window.addEventListener("pointermove", (event) => {
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
-    //console.log(mouse);
 });
 
 renderer.domElement.addEventListener("pointerdown", (event) => {
@@ -219,13 +200,8 @@ let single_step = false;
 function animate() {
     requestAnimationFrame(animate);
 
-    //line.count = conf.N;
-    //geometry.setDrawRange(0,conf.N);
     grid.visible = conf.floor;
 
-    //function f(i, D, N) {
-    //    return (i * (D - 1)) % (N - 1) === 0 ? true : false;
-    //}
     function f(i, D, N) {
         const step = (N - 1) / (D - 1);
         return Math.floor(Math.round(i / step) * step) === i ? 1 : 0;
@@ -239,7 +215,7 @@ function animate() {
     // momentum plus gravity
     for (let i = 0; i < conf.N; i++) {
         const is_bead = f(i, conf.beads, conf.N);
-        //let curvature= 0.6 * ((x[i - 3] + x[i + 3]) / 2 - x[i]);
+        // skip active beads
         if (is_bead) {
             if (conf.fix === 0 && (i == 0 || i == conf.N - 1)) {
                 continue;
@@ -253,7 +229,7 @@ function animate() {
             p[idx] =
                 x[idx] +
                 (x[idx] - x0[idx]) * (conf.momentum ? 1.0 : 0.0) -
-                (conf.gravity ? 1.0 : 0.0) * (j % 3 === 1); //+ curvature;
+                (conf.gravity ? 1.0 : 0.0) * (j % 3 === 1);
         }
     }
 
@@ -275,7 +251,6 @@ function animate() {
     if (play || single_step) {
         x0.set(x);
 
-        const start = performance.now();
         let t = solver.solve(
             conf.N,
             Math.pow(10.0, conf.tol_exp),
@@ -286,7 +261,6 @@ function animate() {
             stats
         );
         // stats: time, error, iters
-        const end = performance.now();
         conf.solveTime = stats[0];
         conf.error = stats[1];
         conf.iters = stats[2];
@@ -295,28 +269,6 @@ function animate() {
     vertices.set(x);
     geometry.setPositions(vertices);
     geometry.instanceCount = conf.N-1;
-
-    if (false) {
-        //update shadows
-        const start = shadow_geometry.attributes.instanceStart;
-        const end = shadow_geometry.attributes.instanceEnd;
-        for (let i = 0; i < N - 1; i++) {
-            start.setXYZ(
-                i,
-                vertices[i * 3 + 0],
-                1.01 + floor,
-                vertices[i * 3 + 2]
-            );
-            end.setXYZ(
-                i,
-                vertices[(i + 1) * 3 + 0],
-                1.01 + floor,
-                vertices[(i + 1) * 3 + 2]
-            );
-        }
-        start.needsUpdate = true;
-        end.needsUpdate = true;
-    }
 
     let best = Infinity;
     let best_idx = -1;
@@ -332,10 +284,6 @@ function animate() {
             }
         }
     }
-
-    //dummy.position.fromArray(vertices, pick_vert * 3);
-    //dummy.updateMatrix();
-    //instancedMesh.setMatrixAt(0, dummy.matrix);
 
     let j = 0;
     for (let i = 0; i < conf.N; i++) {
