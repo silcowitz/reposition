@@ -51,7 +51,7 @@ if(EMSCRIPTEN)
         "-sALLOW_MEMORY_GROWTH=1"
         "-sSTACK_SIZE=16mb"
         "-sEXPORT_ES6"
-        "-sENVIRONMENT=web,node"
+        "-sENVIRONMENT=web"
         "-sEXPORT_NAME=${LIB_NAME}"
     )
 endif()
