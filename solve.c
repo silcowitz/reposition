@@ -504,7 +504,7 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p, const scala
                 lower_bidiag_block_mul(N, 3, Md, zero, rhs2, rhs2);
                 // trace( N*3, rhs2, "M RT LTinv bz");
                 sub(N * 3, p, rhs2, x);
-                double t1 = wtime();
+                scalar t1 = wtime();
                 stats[0] = t1-t0; // time
                 stats[1] = e; // error
                 stats[2] = j; // iterations
