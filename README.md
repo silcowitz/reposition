@@ -14,7 +14,7 @@ The main advantages of this are
 
 we're going to solve 
 
-$$\min_{\mathbf x}  \bf\frac{1}{2} (\mathbf x - \mathbf p)^{\mathrm T} \mathbf M (\mathbf x - \mathbf p) \tag{1}$$
+$$\min_{\mathbf x}  \bf\frac{1}{2} (\mathbf x - \mathbf p)^{\mathrm T} \mathbf M (\mathbf x - \mathbf p)$$
 
 subject to 
 
