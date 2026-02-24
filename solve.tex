@@ -1,0 +1,100 @@
+\documentclass[14pt]{extarticle}
+    \title{Projecting chains of constrained points}
+    \author{Morten Silcowitz}
+    \date{Feb 2026}
+
+    %\addtolength{\topmargin}{-5cm}
+    %\addtolength{\textheight}{5cm}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{alltt}
+\usepackage{listings}
+\newcommand*{\vv}[1]{\mathbf{#1}}
+\renewcommand{\familydefault}{\sfdefault}
+
+\usepackage{xcolor}
+\definecolor{bg}{RGB}{30,30,30}
+\definecolor{fg}{RGB}{220,220,220}
+\pagecolor{bg}
+\color{fg}
+
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+
+\section{Formulation}
+We're going to solve
+\begin{align*}
+\min_{\vv x} \quad &  \frac{1}{2} \; \vv{(x-p)}^{\text T} \vv M \vv {(x-p)} \\
+\text{s.t} \quad & \vv z = \vv R \vv x \quad \mathrm{ and} \quad \vv z_i^{\text T}\vv z_i = 1
+\end{align*}
+where
+\begin{align*}
+ \vv x \in \mathbb R^{\text 3n } &\quad\text{is the solution vector,} \\
+ \vv p \in \mathbb R^{\mathrm{3n}} &\quad\text{is the vector of target/free fall positions,}\\
+ \vv z \in \mathbb R^{\mathrm{3(n-1)}} &\quad\text{is the vector of difference vectors in the chain,} \\
+ \vv z_i \in \mathbb R^{\mathrm{3}} &\quad\text{is the $i$th 3-vector in $\vv z$,} \\
+\vv R \in \mathbb R^{\mathrm{3(n-1)\times3n}} &\quad\text{is the per vector finite-difference matrix}\\&\quad\text{so }(\vv R \vv x)_i = \vv x_{i} - \vv x_{i+1} \\
+ \vv M \in \mathbb R^{\mathrm{3n\times3n}} &\quad\text{is the mass matrix, simply having}\\ &\quad\text{the mass (or weight) of each particle}\\&\quad\text{in each 3x3 block diagonal} \\
+\end{align*}
+We want to be working only on the difference vectors in $\vv z$. To do that, we skip the details and jump directly to the minimizer for $\vv x$, treating $\vv z$ as a constant for now:
+\begin{align*}
+\vv x = \vv p - \vv M^{-1}\vv R^{\mathrm T} \vv S^{-1}(\vv R\vv p - \vv z)\\
+\end{align*}
+where $\vv S = \vv R \vv M^{-1} \vv R^{T}$ is a block tridiagonal
+matix. Inserting this into the main problem eliminates $ \mathbf z = \mathbf R
+\mathbf x $ and we are left with
+
+
+\begin{align*}
+\min_{\vv x} \quad &  \frac{1}{2} \; \vv{(z-Rp)}^{\text T} \vv S^{-1} \vv
+{(z-Rp)} \\
+\text{s.t} \quad & \vv z_i^{\text T}\vv z_i = 1 \quad i=1\dots n
+\end{align*}
+In this reformulated problem we must find a $\vv z$ that consist of unit
+length 3-vectors that minimize the distance to $\vv{Rp}$ under the $\vv S^{-1}$
+norm. It worth noting that it is trivial to project $\vv z$ to satisfy the unit length constraints, and likewise it is trivial to obtain $\vv x$ given any $\vv z$. This means that whenever we take a newton step on $\vv z$ we can trivially reign it in to its feasible solution, and in effect only changing the directions of each $\vv z_i$ vector, never their length.
+
+\section{Algorithm}
+Here we'll outline the algorithm in full before explaining each step in detail:
+\begin{center}
+\begin{lstlisting}[mathescape=true,numbers=right]
+$\vv L$ = cholesky($\vv{S}$)
+$\vv z$ = $\vv{Rx}$
+while true do
+    $\vv Q$,$\vv z$ = normalize($\vv z$)
+    $\vv y$ = $\vv{Rp-z}$
+    $\vv \lambda$ = solve($\vv{QSQ^{T}}$, $\vv{Qy}$)
+    $\vv{b_z}$ = solve($\vv L$, $\vv{y}$)
+    $\vv{b_\lambda}$ = $\vv{L^{T}Q^{T}\lambda} $
+    if $\|\vv{bz-bl}\|^{2}$ < $\epsilon$ then
+        $\vv s$ = solve($\vv{L^{T}}$, $\vv{b_z}$)
+        $\vv x$ = $\vv{p-M^{-1}R^{T}s}$
+        return $\vv x$
+    $\vv D$ = diagonal(max($0$,$\vv \lambda$))
+    $\vv{\Delta z}$ = $\vv L$ solve($\vv{I+L^{T}DL}$, $\vv{b_z-b_\lambda}$)
+    $\vv z$ = $\vv{z+\Delta z}$
+\end{lstlisting}
+\end{center}
+Each iteration the algorithm does these main steps:
+\begin{enumerate}
+    \item Normalize the 3-vectors in $\vv z$
+    \item Compute the $n-1$ Lagrange multipliers of the system at $\vv z$
+    \item Check the solution residual, if below threshold compute and return $\vv x$
+    \item Compute the Newton step on $\vv z$ and go to step 1
+\end{enumerate}
+Note the following:
+\begin{itemize}
+    \item we compute the cholesky decomposition $\vv{LL^{T}=S}$ to keep the systems we need to solve sparse and symmetric. See more details bellow. Computing cholesky for a block-tridiagonal SPD matrix is simple and fast, and if $\vv M$ is fixed it can be done off-line/once.
+    \item every \texttt{solve()} is at least a block tri-diagonal system (or simpler), which are fast and easy to solve
+    \item to compute the Lagrange multipliers we build the Jacobian matrix $\vv Q \in \mathbb R^{3(n-1)\times(n-1)}$, which is simply the $\vv z_i$ vectors vertically stacked
+    \item the matrix $\vv D$ is the contribution to the Hessian stemming from the non-linear unit length constraints. We clamp it to be positive to keep the Hessian PD. This is a hack but seems to play out well in practice
+\end{itemize}
+
+\subsection{Lagrange multipliers}
+\subsection{Hessian system}
+\end{document}
