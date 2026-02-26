@@ -2,68 +2,90 @@
     \title{Projecting chains of constrained points}
     \author{Morten Silcowitz}
     \date{Feb 2026}
-
-    %\addtolength{\topmargin}{-5cm}
-    %\addtolength{\textheight}{5cm}
-
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{alltt}
-\usepackage{listings}
+
 \newcommand*{\vv}[1]{\mathbf{#1}}
+\newcommand{\T}{\text{T}}
 \renewcommand{\familydefault}{\sfdefault}
 
 \usepackage{xcolor}
 \definecolor{bg}{RGB}{30,30,30}
+\definecolor{bg2}{RGB}{40,40,40}
 \definecolor{fg}{RGB}{220,220,220}
 \pagecolor{bg}
 \color{fg}
 
-
+\usepackage{listings}
+\lstdefinestyle{mystyle}{
+    rulecolor=\color{bg},
+    backgroundcolor=\color{bg2},
+    mathescape=true,
+    numbers=left,
+    numbersep=15pt,
+    frame=single,
+    numberstyle=\ifnum\value{lstnumber}<10 0\fi,
+}
+\lstset{style=mystyle}
 \begin{document}
-
 \maketitle
 \thispagestyle{empty}
-
-
+\newpage
 \section{Formulation}
 We're going to solve
-\begin{align*}
-\min_{\vv x} \quad &  \frac{1}{2} \; \vv{(x-p)}^{\text T} \vv M \vv {(x-p)} \\
-\text{s.t} \quad & \vv z = \vv R \vv x \quad \mathrm{ and} \quad \vv z_i^{\text T}\vv z_i = 1
-\end{align*}
+\begin{align}
+\min_{\vv x} \quad &  \frac{1}{2} \; \vv{(x-p)}^{\T} \vv M \vv {(x-p)}
+\label{eq:orig} \\
+\text{s.t} \quad & \vv z = \vv R \vv x \quad \mathrm{ and} \quad \vv z_i^{\T}\vv
+z_i = 1 \nonumber
+\end{align}
 where
-\begin{align*}
-n \in \mathbb N &\quad\text{is the number of particles between links}\\
-m \in \mathbb N &\quad\text{is the } n-1 \text{ of links between particles}\\
- \vv x \in \mathbb R^{\text 3n } &\quad\text{is the solution vector,} \\
- \vv p \in \mathbb R^{\mathrm{3n}} &\quad\text{is the vector of target/free fall positions,}\\
- \vv z \in \mathbb R^{\mathrm{3m}} &\quad\text{is the vector of difference
- vectors in the chain,} \\
- \vv z_i \in \mathbb R^{\mathrm{3}} &\quad\text{is the $i$th 3-vector in $\vv z$,} \\
-\vv R \in \mathbb R^{\mathrm{3m\times3n}} &\quad\text{is the per vector
-finite-difference matrix}\\&\quad\text{so }(\vv R \vv x)_i = \vv x_{i} - \vv
-x_{i+1} \\
- \vv M \in \mathbb R^{\mathrm{3n\times3n}} &\quad\text{is the mass matrix,
- simply having}\\ &\quad\text{the mass (or weight) of each
- particle}\\&\quad\text{in each 3x3 block diagonal} \\
-\end{align*}
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}cclp{0.6\textwidth}@{}}
+$n$ & $\in$ & $\mathbb N$ & is the number of particles between links \\
+$m$ & $\in$ & $\mathbb N$ & is the $n-1$ of links between particles \\
+$\vv x$ & $\in$ & $\mathbb R^{3n}$ & is the solution vector, \\
+$\vv p$ & $\in$ & $\mathbb R^{3n}$ & is target/free moving positions, \\
+$\vv z$ & $\in$ & $\mathbb R^{\mathrm{3m}}$ & is the vector of difference vectors in the chain, \\
+$\vv z_i$ & $\in$ & $\mathbb R^{\mathrm{3}}$ & is the $i$th 3-vector in $\vv z$, \\
+$\vv R$ & $\in$  & $\mathbb R^{\mathrm{3m\times3n}}$ & is the per vector
+finite-difference matrix so that $(\vv R \vv x)_i = \vv x_{i} - \vv x_{i+1}$ \\
+$\vv M$ & $\in$ & $\mathbb R^{\mathrm{3n\times3n}}$ & is the mass matrix, simply
+having the mass (or weight) of each particlein each 3x3 block diagonal \\
+\end{tabular}
+\end{center}
 We want to be working only on the difference vectors in $\vv z$. To do that, we
-skip the details and jump directly to the minimizer for $\vv x$, treating $\vv
-z$ as a constant for now:
+need to eliminate $\vv x$, and we do this by holding $\vv z$ constant and
+deriving the optimality conditions for \eqref{eq:orig}. We first state the
+Lagrangian:
 \begin{align*}
-\vv x = \vv p - \vv M^{-1}\vv R^{\mathrm T} \vv S^{-1}(\vv R\vv p - \vv z)\\
+\mathcal{L}(\vv x, \vv \lambda) = \frac{1}{2} \vv{(x-p)}^{\T} \vv M \vv{(x-p)} +
+\vv \lambda^{\T} (\vv z - \vv R \vv x)
 \end{align*}
-where $\vv S = \vv R \vv M^{-1} \vv R^{T} \in \mathbb R^{3m \times 3m}$ is a
-block tridiagonal matix. Inserting this into the main problem eliminates $
-\mathbf z = \mathbf R \mathbf x $ and we are left with
-
-
+with the optimality conditions:
 \begin{align*}
-\min_{\vv x} \quad &  \frac{1}{2} \; \vv{(z-Rp)}^{\text T} \vv S^{-1} \vv
-{(z-Rp)} \\
-\text{s.t} \quad & \vv z_i^{\text T}\vv z_i = 1 \quad i=1\dots m
+ \vv M (\vv x - \vv p) - \vv R^{\T} \vv \lambda &= 0 \\
+ \vv z - \vv R \vv x &= 0
 \end{align*}
+solving for $\vv \lambda$ gives us:
+\begin{align*}
+\vv \lambda = (\underbrace{\vv R \vv M^{-1} \vv R^{\T}}_{S})^{-1}
+(\vv z-\vv{Rp})
+\end{align*}
+where $\vv S = \vv R \vv M^{-1} \vv R^{\T} \in \mathbb R^{3m \times 3m}$ is a
+block tridiagonal matix. We use this to give us an expression for $\vv x$:
+\begin{align*}
+\vv x = \vv p + \vv M^{-1}\vv R^{\T} \vv S^{-1}(\vv z - \vv R\vv p)
+\end{align*}
+Inserting this into \eqref{eq:orig} eliminates $\mathbf z = \mathbf R \mathbf x
+$ and we are left with
+\begin{align}
+\min_{\vv x} \quad &  \frac{1}{2} \; \vv{(z-Rp)}^{\T} \vv S^{-1} \vv
+{(z-Rp)} \label{eq:main}\\
+\text{s.t} \quad & \vv z_i^{\T}\vv z_i = 1 \quad i=1\dots m \nonumber
+\end{align}
 In this reformulated problem we must find a $\vv z$ that consist of unit length
 3-vectors that minimize the distance to $\vv{Rp}$ under the $\vv S^{-1}$ norm.
 It worth noting that it is trivial to project $\vv z$ to satisfy the unit length
@@ -71,25 +93,99 @@ constraints, and likewise it is trivial to obtain $\vv x$ given any $\vv z$.
 This means that whenever we take a newton step on $\vv z$ we can trivially reign
 it in to its feasible solution, and in effect only changing the directions of
 each $\vv z_i$ vector, never their length.
+\section{Solution}
+We want to solve this system using a newton-like method, so to make sense of
+that we first derive the full newton step. The Lagrangian of \eqref{eq:main} is
+\begin{align*}
+\mathcal{L}_{(\vv z, \vv \lambda)} = \frac{1}{2} \vv{(z-Rp)}^{\T} \vv S^{-1}
+\vv{(z-Rp)} + \frac{1}{2} \sum_{i=1}^{m} \lambda_i (\vv z_i^{\T} \vv z_i - 1)
+\end{align*}
+and the newton step to find a stationary point $\vv{(z,\lambda)}$ is
+\begin{align*}
+\underbrace{
+\begin{bmatrix}
+\vv S^{-1}+\vv{D_\lambda} & \vv Q^{\T}_z \\
+\vv Q_z & \\
+\end{bmatrix}
+}_{H \mathcal{L}_{(\vv z, \vv \lambda)}   }
+\begin{bmatrix}
+\Delta \vv z \\
+\Delta \vv \lambda \\
+\end{bmatrix}
+=
+\underbrace{
+\begin{bmatrix}
+\vv S^{-1}(\vv z - \vv R \vv p) + \vv Q_z^{\T} \vv \lambda \\
+\vv{Q_z z-1} \\
+\end{bmatrix}
+}_{ \nabla \mathcal{L}_{(\vv z, \vv \lambda)}  }
+\end{align*}
+where
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}cclp{0.6\textwidth}@{}}
+$\vv Q_z$ & $\in$ & $\mathbb R^{m\times 3m}$ & is the Jacobian matrix of length
+constraints on the 3-vectors in $\vv z$ \\
+$\vv D_\lambda$ & $\in$ & $\mathbb R^{3m\times 3m}$ & is a diagonal matrix where
+each 3x3 diagonal block has it's corresponding $\vv \lambda_i$ value on the
+diagonal\\
+\end{tabular}
+\end{center}
+
+
+There are many interesting ways to go about solving this system, but in our case
+the goal is the exploint the tri-diagonal structure of $\vv S$, in order to
+use fast direct solves. Instead of solving the full step, we first solve just
+for $\vv{\Delta \lambda}$ at $\vv{\lambda = 0}$, effectively resetting the
+multipliers in each iteration. After that we solve for $\vv \Delta z$ to update
+the solution variables.
+
+\subsection{Solving for $\vv{\lambda}$}
+To derive the solution for \(\Delta \lambda\) we eliminate \(\Delta z\) by using
+$\vv{\lambda = 0}$ and solving the first row. Interestingly, because we will
+project the vectors in $\vv z$ in each iteration the $\vv{Q_z z-1}$ term is
+always $0$, which will simplify things a bit:
+
+\begin{align*}
+\Delta \vv z = \vv S (\vv Q^{\T}_z \Delta \vv \lambda + \vv S^{-1}(\vv z - \vv R
+\vv p))
+\end{align*}
+Substitute \(\Delta \vv z\) into the second row:
+\begin{align*}
+\vv Q_z (\vv S (\vv Q^{\T}_z \Delta \vv \lambda + \vv S^{-1}(\vv z - \vv R \vv
+p))) = \underbrace{\vv{Q_z z-1}}_{\vv 0}
+\end{align*}
+
+Simplify to solve for \(\Delta \vv \lambda\):
+
+\[
+\vv Q_z \vv S \vv Q^{\T}_z \Delta \vv \lambda = -\vv Q_z (\vv z - \vv R \vv p)
+\]
+
+Thus, the solution for \(\Delta \lambda\) is:
+
+\[
+\Delta \vv \lambda = (\vv Q_z \vv S \vv Q^{\T}_z)^{-1} (\vv{Q_z z-1} - \vv Q_z (\vv z - \vv R \vv p))
+\]
 
 \section{Algorithm}
 Here we'll outline the algorithm in full before explaining each step in detail:
 \begin{center}
-\begin{lstlisting}[mathescape=true,numbers=right]
+\begin{lstlisting}[]
 $\vv L$ = cholesky($\vv{S}$)
 $\vv z$ = $\vv{Rx}$
 while true do
     $\vv Q$,$\vv z$ = normalize($\vv z$)
     $\vv y$ = $\vv{Rp-z}$
-    $\vv \lambda$ = solve($\vv{QSQ^{T}}$, $\vv{Qy}$)
+    $\vv \lambda$ = solve($\vv{QSQ^{\T}}$, $\vv{Qy}$)
     $\vv{b_z}$ = solve($\vv L$, $\vv{y}$)
-    $\vv{b_\lambda}$ = $\vv{L^{T}Q^{T}\lambda} $
+    $\vv{b_\lambda}$ = $\vv{L^{\T}Q^{\T}\lambda} $
     if $\|\vv{bz-bl}\|^{2}$ < $\epsilon$ then
-        $\vv s$ = solve($\vv{L^{T}}$, $\vv{b_z}$)
-        $\vv x$ = $\vv{p-M^{-1}R^{T}s}$
+        $\vv s$ = solve($\vv{L^{\T}}$, $\vv{b_z}$)
+        $\vv x$ = $\vv{p-M^{-1}R^{\T}s}$
         return $\vv x$
     $\vv D$ = diagonal(max($0$,$\vv \lambda$))
-    $\vv{\Delta z}$ = $\vv L$ solve($\vv{I+L^{T}DL}$, $\vv{b_z-b_\lambda}$)
+    $\vv{\Delta z}$ = $\vv L$ solve($\vv{I+L^{\T}DL}$, $\vv{b_z-b_\lambda}$)
     $\vv z$ = $\vv{z+\Delta z}$
 \end{lstlisting}
 \end{center}
@@ -102,14 +198,14 @@ Each iteration the algorithm does these main steps:
 \end{enumerate}
 Note the following:
 \begin{itemize}
-    \item we compute the cholesky decomposition $\vv{LL^{T}=S}$ to keep the
+    \item we compute the cholesky decomposition $\vv{LL^{\T}=S}$ to keep the
     systems we need to solve sparse and symmetric. See more details bellow.
     Computing cholesky for a block-tridiagonal SPD matrix is simple and fast,
     and if $\vv M$ is fixed it can be done off-line/once.
     \item every \texttt{solve()} is at least a block tri-diagonal system (or
     simpler), which are fast and easy to solve
     \item to compute the Lagrange multipliers we build the Jacobian matrix $\vv
-    Q \in \mathbb R^{3(n-1)\times(n-1)}$, which is simply the $\vv z_i$ vectors
+    Q \in \mathbb R^{3m\times m}$, which is simply the $\vv z_i$ vectors
     vertically stacked
     \item the matrix $\vv D$ is the contribution to the Hessian stemming from
     the non-linear unit length constraints. We clamp it to be positive to keep
