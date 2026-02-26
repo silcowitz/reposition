@@ -34,30 +34,43 @@ We're going to solve
 \end{align*}
 where
 \begin{align*}
+n \in \mathbb N &\quad\text{is the number of particles between links}\\
+m \in \mathbb N &\quad\text{is the } n-1 \text{ of links between particles}\\
  \vv x \in \mathbb R^{\text 3n } &\quad\text{is the solution vector,} \\
  \vv p \in \mathbb R^{\mathrm{3n}} &\quad\text{is the vector of target/free fall positions,}\\
- \vv z \in \mathbb R^{\mathrm{3(n-1)}} &\quad\text{is the vector of difference vectors in the chain,} \\
+ \vv z \in \mathbb R^{\mathrm{3m}} &\quad\text{is the vector of difference
+ vectors in the chain,} \\
  \vv z_i \in \mathbb R^{\mathrm{3}} &\quad\text{is the $i$th 3-vector in $\vv z$,} \\
-\vv R \in \mathbb R^{\mathrm{3(n-1)\times3n}} &\quad\text{is the per vector finite-difference matrix}\\&\quad\text{so }(\vv R \vv x)_i = \vv x_{i} - \vv x_{i+1} \\
- \vv M \in \mathbb R^{\mathrm{3n\times3n}} &\quad\text{is the mass matrix, simply having}\\ &\quad\text{the mass (or weight) of each particle}\\&\quad\text{in each 3x3 block diagonal} \\
+\vv R \in \mathbb R^{\mathrm{3m\times3n}} &\quad\text{is the per vector
+finite-difference matrix}\\&\quad\text{so }(\vv R \vv x)_i = \vv x_{i} - \vv
+x_{i+1} \\
+ \vv M \in \mathbb R^{\mathrm{3n\times3n}} &\quad\text{is the mass matrix,
+ simply having}\\ &\quad\text{the mass (or weight) of each
+ particle}\\&\quad\text{in each 3x3 block diagonal} \\
 \end{align*}
-We want to be working only on the difference vectors in $\vv z$. To do that, we skip the details and jump directly to the minimizer for $\vv x$, treating $\vv z$ as a constant for now:
+We want to be working only on the difference vectors in $\vv z$. To do that, we
+skip the details and jump directly to the minimizer for $\vv x$, treating $\vv
+z$ as a constant for now:
 \begin{align*}
 \vv x = \vv p - \vv M^{-1}\vv R^{\mathrm T} \vv S^{-1}(\vv R\vv p - \vv z)\\
 \end{align*}
-where $\vv S = \vv R \vv M^{-1} \vv R^{T}$ is a block tridiagonal
-matix. Inserting this into the main problem eliminates $ \mathbf z = \mathbf R
-\mathbf x $ and we are left with
+where $\vv S = \vv R \vv M^{-1} \vv R^{T} \in \mathbb R^{3m \times 3m}$ is a
+block tridiagonal matix. Inserting this into the main problem eliminates $
+\mathbf z = \mathbf R \mathbf x $ and we are left with
 
 
 \begin{align*}
 \min_{\vv x} \quad &  \frac{1}{2} \; \vv{(z-Rp)}^{\text T} \vv S^{-1} \vv
 {(z-Rp)} \\
-\text{s.t} \quad & \vv z_i^{\text T}\vv z_i = 1 \quad i=1\dots n
+\text{s.t} \quad & \vv z_i^{\text T}\vv z_i = 1 \quad i=1\dots m
 \end{align*}
-In this reformulated problem we must find a $\vv z$ that consist of unit
-length 3-vectors that minimize the distance to $\vv{Rp}$ under the $\vv S^{-1}$
-norm. It worth noting that it is trivial to project $\vv z$ to satisfy the unit length constraints, and likewise it is trivial to obtain $\vv x$ given any $\vv z$. This means that whenever we take a newton step on $\vv z$ we can trivially reign it in to its feasible solution, and in effect only changing the directions of each $\vv z_i$ vector, never their length.
+In this reformulated problem we must find a $\vv z$ that consist of unit length
+3-vectors that minimize the distance to $\vv{Rp}$ under the $\vv S^{-1}$ norm.
+It worth noting that it is trivial to project $\vv z$ to satisfy the unit length
+constraints, and likewise it is trivial to obtain $\vv x$ given any $\vv z$.
+This means that whenever we take a newton step on $\vv z$ we can trivially reign
+it in to its feasible solution, and in effect only changing the directions of
+each $\vv z_i$ vector, never their length.
 
 \section{Algorithm}
 Here we'll outline the algorithm in full before explaining each step in detail:
@@ -89,12 +102,97 @@ Each iteration the algorithm does these main steps:
 \end{enumerate}
 Note the following:
 \begin{itemize}
-    \item we compute the cholesky decomposition $\vv{LL^{T}=S}$ to keep the systems we need to solve sparse and symmetric. See more details bellow. Computing cholesky for a block-tridiagonal SPD matrix is simple and fast, and if $\vv M$ is fixed it can be done off-line/once.
-    \item every \texttt{solve()} is at least a block tri-diagonal system (or simpler), which are fast and easy to solve
-    \item to compute the Lagrange multipliers we build the Jacobian matrix $\vv Q \in \mathbb R^{3(n-1)\times(n-1)}$, which is simply the $\vv z_i$ vectors vertically stacked
-    \item the matrix $\vv D$ is the contribution to the Hessian stemming from the non-linear unit length constraints. We clamp it to be positive to keep the Hessian PD. This is a hack but seems to play out well in practice
+    \item we compute the cholesky decomposition $\vv{LL^{T}=S}$ to keep the
+    systems we need to solve sparse and symmetric. See more details bellow.
+    Computing cholesky for a block-tridiagonal SPD matrix is simple and fast,
+    and if $\vv M$ is fixed it can be done off-line/once.
+    \item every \texttt{solve()} is at least a block tri-diagonal system (or
+    simpler), which are fast and easy to solve
+    \item to compute the Lagrange multipliers we build the Jacobian matrix $\vv
+    Q \in \mathbb R^{3(n-1)\times(n-1)}$, which is simply the $\vv z_i$ vectors
+    vertically stacked
+    \item the matrix $\vv D$ is the contribution to the Hessian stemming from
+    the non-linear unit length constraints. We clamp it to be positive to keep
+    the Hessian PD. This is a hack but seems to play out well in practice
 \end{itemize}
 
 \subsection{Lagrange multipliers}
 \subsection{Hessian system}
+
+
+\subsection{Lagrange multipliers}
+To derive the expression for \( \vv x \) as a function of \( \vv z \) using
+Lagrange multipliers, we start by considering the constrained optimization
+problem:
+
+\[
+\min_{\vv x} \quad \frac{1}{2} \; \vv{(x-p)}^{\text T} \vv M \vv {(x-p)}
+\]
+
+subject to the constraints:
+
+\[
+\vv z = \vv R \vv x \quad \text{and} \quad \vv z_i^{\text T}\vv z_i = 1
+\]
+
+We introduce Lagrange multipliers \( \vv \lambda \) for the constraints \( \vv z = \vv R \vv x \). The Lagrangian is given by:
+
+\[
+\mathcal{L}(\vv x, \vv \lambda) = \frac{1}{2} \; \vv{(x-p)}^{\text T} \vv M \vv {(x-p)} + \vv \lambda^{\text T} (\vv z - \vv R \vv x)
+\]
+
+Taking the derivative of the Lagrangian with respect to \( \vv x \) and setting it to zero gives:
+
+\[
+\vv M (\vv x - \vv p) - \vv R^{\text T} \vv \lambda = 0
+\]
+
+Solving for \( \vv x \), we have:
+
+\[
+\vv x = \vv p + \vv M^{-1} \vv R^{\text T} \vv \lambda
+\]
+
+Substituting the constraint \( \vv z = \vv R \vv x \) into the expression for \( \vv x \), we get:
+
+\[
+\vv z = \vv R (\vv p + \vv M^{-1} \vv R^{\text T} \vv \lambda)
+\]
+
+\[
+\vv z = \vv R \vv p + \vv R \vv M^{-1} \vv R^{\text T} \vv \lambda
+\]
+
+Rearranging gives:
+
+\[
+\vv R \vv M^{-1} \vv R^{\text T} \vv \lambda = \vv z - \vv R \vv p
+\]
+
+Let \( \vv S = \vv R \vv M^{-1} \vv R^{\text T} \), then:
+
+\[
+\vv S \vv \lambda = \vv z - \vv R \vv p
+\]
+
+Solving for \( \vv \lambda \):
+
+\[
+\vv \lambda = \vv S^{-1} (\vv z - \vv R \vv p)
+\]
+
+Substituting back into the expression for \( \vv x \):
+
+\[
+\vv x = \vv p + \vv M^{-1} \vv R^{\text T} \vv S^{-1} (\vv z - \vv R \vv p)
+\]
+
+Simplifying, we obtain:
+
+\[
+\vv x = \vv p - \vv M^{-1} \vv R^{\text T} \vv S^{-1} (\vv R \vv p - \vv z)
+\]
+
+
 \end{document}
+
