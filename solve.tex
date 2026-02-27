@@ -75,7 +75,7 @@ solving for $\vv \lambda$ gives us:
 (\vv z-\vv{Rp})
 \end{align*}
 where $\vv S = \vv R \vv M^{-1} \vv R^{\T} \in \mathbb R^{3m \times 3m}$ is a
-block tridiagonal matix. We use this to give us an expression for $\vv x$:
+block tridiagonal SPD matix. We use this to give us an expression for $\vv x$:
 \begin{align*}
 \vv x = \vv p + \vv M^{-1}\vv R^{\T} \vv S^{-1}(\vv z - \vv R\vv p)
 \end{align*}
@@ -87,21 +87,30 @@ $ and we are left with
 \text{s.t} \quad & \vv z_i^{\T}\vv z_i = 1 \quad i=1\dots m \nonumber
 \end{align}
 In this reformulated problem we must find a $\vv z$ that consist of unit length
-3-vectors that minimize the distance to $\vv{Rp}$ under the $\vv S^{-1}$ norm.
-It worth noting that it is trivial to project $\vv z$ to satisfy the unit length
-constraints, and likewise it is trivial to obtain $\vv x$ given any $\vv z$.
+3-vectors that minimize the distance to $\vv{Rp}$ under the $\vv S^{-1}$-norm.
+Note that it is trivial to project $\vv z$ to satisfy the unit length
+constraints (under the regular $\vv I$-norm, known as normalization), and
+likewise it is trivial to
+obtain $\vv x$ given any $\vv z$.
 This means that whenever we take a newton step on $\vv z$ we can trivially reign
-it in to its feasible solution, and in effect only changing the directions of
-each $\vv z_i$ vector, never their length.
+it in to its feasible solution, and in effect only change the directions of
+each $\vv z_i$ vector, never their lengths.
 \section{Solution}
 We want to solve this system using a newton-like method, so to make sense of
 that we first derive the full newton step. The Lagrangian of \eqref{eq:main} is
-\begin{align*}
+\begin{align}
 \mathcal{L}_{(\vv z, \vv \lambda)} = \frac{1}{2} \vv{(z-Rp)}^{\T} \vv S^{-1}
 \vv{(z-Rp)} + \frac{1}{2} \sum_{i=1}^{m} \lambda_i (\vv z_i^{\T} \vv z_i - 1)
-\end{align*}
-and the newton step to find a stationary point $\vv{(z,\lambda)}$ is
+\label{eq:lagrange}
+\end{align}
+The optimality conditions for \eqref{eq:lagrange} are:
 \begin{align*}
+\vv S^{-1} (\vv z - \vv{Rp}) + \vv{Q_z}^{\T} \vv \lambda &= 0 \\
+\vv z_i^{\T} \vv z_i - 1 &= 0 \quad i=1,\dots,m
+\end{align*}
+and the newton step to find a stationary point $\vv{(z,\lambda)}$ for
+\eqref{eq:lagrange} is
+\begin{align}
 \underbrace{
 \begin{bmatrix}
 \vv S^{-1}+\vv{D_\lambda} & \vv Q^{\T}_z \\
@@ -118,21 +127,32 @@ and the newton step to find a stationary point $\vv{(z,\lambda)}$ is
 \vv S^{-1}(\vv z - \vv R \vv p) + \vv Q_z^{\T} \vv \lambda \\
 \vv{Q_z z-1} \\
 \end{bmatrix}
-}_{ \nabla \mathcal{L}_{(\vv z, \vv \lambda)}  }
-\end{align*}
+}_{ \nabla \mathcal{L}_{(\vv z, \vv \lambda)}  } \label{eq:newton}
+\end{align}
 where
 \begin{center}
 \renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}cclp{0.6\textwidth}@{}}
-$\vv Q_z$ & $\in$ & $\mathbb R^{m\times 3m}$ & is the Jacobian matrix of length
-constraints on the 3-vectors in $\vv z$ \\
-$\vv D_\lambda$ & $\in$ & $\mathbb R^{3m\times 3m}$ & is a diagonal matrix where
-each 3x3 diagonal block has it's corresponding $\vv \lambda_i$ value on the
-diagonal\\
+\begin{tabular}{@{}ccllccll@{}}
+$\vv Q_z$ & $ = $ &
+$
+\begin{bmatrix}
+\vv z_1^{\T} & 0 & \cdots & 0 \\
+0 & \vv z_2^{\T} & \cdots & 0 \\
+\vdots & \vdots & \ddots & \vdots \\
+0 & 0 & \cdots & \vv z_m^{\T}
+\end{bmatrix}$ & $\in \mathbb R^{ m\times 3m}$ \\
+\\
+$\vv D_\lambda$ & $=$ &
+$
+\begin{bmatrix}
+\vv{I \lambda_1} & 0 & \cdots & 0 \\
+0 & \vv{I \lambda_2} & \cdots & 0 \\
+\vdots & \vdots & \ddots & \vdots \\
+0 & 0 & \cdots & \vv{I \lambda_m}
+\end{bmatrix} $ & $\in \mathbb R^{3m\times 3m}$ \\
+\\
 \end{tabular}
 \end{center}
-
-
 There are many interesting ways to go about solving this system, but in our case
 the goal is the exploint the tri-diagonal structure of $\vv S$, in order to
 use fast direct solves. Instead of solving the full step, we first solve just
@@ -142,30 +162,27 @@ the solution variables.
 
 \subsection{Solving for $\vv{\lambda}$}
 To derive the solution for \(\Delta \lambda\) we eliminate \(\Delta z\) by using
-$\vv{\lambda = 0}$ and solving the first row. Interestingly, because we will
+$\vv{\lambda = 0}$ and solving the first row in \eqref{eq:newton}.
+Interestingly, because we will
 project the vectors in $\vv z$ in each iteration the $\vv{Q_z z-1}$ term is
 always $0$, which will simplify things a bit:
-
 \begin{align*}
 \Delta \vv z = \vv S (\vv Q^{\T}_z \Delta \vv \lambda + \vv S^{-1}(\vv z - \vv R
 \vv p))
 \end{align*}
-Substitute \(\Delta \vv z\) into the second row:
+Substitute \(\Delta \vv z\) into the second row in \eqref{eq:newton}:
 \begin{align*}
 \vv Q_z (\vv S (\vv Q^{\T}_z \Delta \vv \lambda + \vv S^{-1}(\vv z - \vv R \vv
 p))) = \underbrace{\vv{Q_z z-1}}_{\vv 0}
 \end{align*}
-
 Simplify to solve for \(\Delta \vv \lambda\):
-
 \[
 \vv Q_z \vv S \vv Q^{\T}_z \Delta \vv \lambda = -\vv Q_z (\vv z - \vv R \vv p)
 \]
-
-Thus, the solution for \(\Delta \lambda\) is:
-
+So the solution for \(\Delta \lambda\) is:
 \[
-\Delta \vv \lambda = (\vv Q_z \vv S \vv Q^{\T}_z)^{-1} (\vv{Q_z z-1} - \vv Q_z (\vv z - \vv R \vv p))
+\Delta \vv \lambda = (\vv Q_z \vv S \vv Q^{\T}_z)^{-1} (- \vv Q_z (\vv z - \vv R
+\vv p))
 \]
 
 \section{Algorithm}
@@ -211,84 +228,6 @@ Note the following:
     the non-linear unit length constraints. We clamp it to be positive to keep
     the Hessian PD. This is a hack but seems to play out well in practice
 \end{itemize}
-
-\subsection{Lagrange multipliers}
-\subsection{Hessian system}
-
-
-\subsection{Lagrange multipliers}
-To derive the expression for \( \vv x \) as a function of \( \vv z \) using
-Lagrange multipliers, we start by considering the constrained optimization
-problem:
-
-\[
-\min_{\vv x} \quad \frac{1}{2} \; \vv{(x-p)}^{\text T} \vv M \vv {(x-p)}
-\]
-
-subject to the constraints:
-
-\[
-\vv z = \vv R \vv x \quad \text{and} \quad \vv z_i^{\text T}\vv z_i = 1
-\]
-
-We introduce Lagrange multipliers \( \vv \lambda \) for the constraints \( \vv z = \vv R \vv x \). The Lagrangian is given by:
-
-\[
-\mathcal{L}(\vv x, \vv \lambda) = \frac{1}{2} \; \vv{(x-p)}^{\text T} \vv M \vv {(x-p)} + \vv \lambda^{\text T} (\vv z - \vv R \vv x)
-\]
-
-Taking the derivative of the Lagrangian with respect to \( \vv x \) and setting it to zero gives:
-
-\[
-\vv M (\vv x - \vv p) - \vv R^{\text T} \vv \lambda = 0
-\]
-
-Solving for \( \vv x \), we have:
-
-\[
-\vv x = \vv p + \vv M^{-1} \vv R^{\text T} \vv \lambda
-\]
-
-Substituting the constraint \( \vv z = \vv R \vv x \) into the expression for \( \vv x \), we get:
-
-\[
-\vv z = \vv R (\vv p + \vv M^{-1} \vv R^{\text T} \vv \lambda)
-\]
-
-\[
-\vv z = \vv R \vv p + \vv R \vv M^{-1} \vv R^{\text T} \vv \lambda
-\]
-
-Rearranging gives:
-
-\[
-\vv R \vv M^{-1} \vv R^{\text T} \vv \lambda = \vv z - \vv R \vv p
-\]
-
-Let \( \vv S = \vv R \vv M^{-1} \vv R^{\text T} \), then:
-
-\[
-\vv S \vv \lambda = \vv z - \vv R \vv p
-\]
-
-Solving for \( \vv \lambda \):
-
-\[
-\vv \lambda = \vv S^{-1} (\vv z - \vv R \vv p)
-\]
-
-Substituting back into the expression for \( \vv x \):
-
-\[
-\vv x = \vv p + \vv M^{-1} \vv R^{\text T} \vv S^{-1} (\vv z - \vv R \vv p)
-\]
-
-Simplifying, we obtain:
-
-\[
-\vv x = \vv p - \vv M^{-1} \vv R^{\text T} \vv S^{-1} (\vv R \vv p - \vv z)
-\]
-
 
 \end{document}
 
