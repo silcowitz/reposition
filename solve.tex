@@ -130,29 +130,23 @@ and the newton step to find a stationary point $\vv{(z,\lambda)}$ for
 }_{ \nabla \mathcal{L}_{(\vv z, \vv \lambda)}  } \label{eq:newton}
 \end{align}
 where
-\begin{center}
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}ccllccll@{}}
-$\vv Q_z$ & $ = $ &
-$
+\begin{align*}
+\vv Q_z=
 \begin{bmatrix}
 \vv z_1^{\T} & 0 & \cdots & 0 \\
 0 & \vv z_2^{\T} & \cdots & 0 \\
 \vdots & \vdots & \ddots & \vdots \\
 0 & 0 & \cdots & \vv z_m^{\T}
-\end{bmatrix}$ & $\in \mathbb R^{ m\times 3m}$ \\
-\\
-$\vv D_\lambda$ & $=$ &
-$
+\end{bmatrix}  \in \mathbb R^{ m\times 3m}
+\; \vv D_\lambda  =
 \begin{bmatrix}
-\vv{I \lambda_1} & 0 & \cdots & 0 \\
-0 & \vv{I \lambda_2} & \cdots & 0 \\
+\vv{I_{\lambda_1}} & 0 & \cdots & 0 \\
+0 & \vv{I_{\lambda_2}} & \cdots & 0 \\
 \vdots & \vdots & \ddots & \vdots \\
-0 & 0 & \cdots & \vv{I \lambda_m}
-\end{bmatrix} $ & $\in \mathbb R^{3m\times 3m}$ \\
-\\
-\end{tabular}
-\end{center}
+0 & 0 & \cdots & \vv{I_{\lambda_m}}
+\end{bmatrix}
+ \in \mathbb R^{3m\times 3m} \\
+\end{align*}
 There are many interesting ways to go about solving this system, but in our case
 the goal is the exploint the tri-diagonal structure of $\vv S$, in order to
 use fast direct solves. Instead of solving the full step, we first solve just
@@ -175,16 +169,64 @@ Substitute \(\Delta \vv z\) into the second row in \eqref{eq:newton}:
 \vv Q_z (\vv S (\vv Q^{\T}_z \Delta \vv \lambda + \vv S^{-1}(\vv z - \vv R \vv
 p))) = \underbrace{\vv{Q_z z-1}}_{\vv 0}
 \end{align*}
-Simplify to solve for \(\Delta \vv \lambda\):
+Simplify to solve for \(\Delta \vv \lambda\) we get:
 \[
 \vv Q_z \vv S \vv Q^{\T}_z \Delta \vv \lambda = -\vv Q_z (\vv z - \vv R \vv p)
 \]
-So the solution for \(\Delta \lambda\) is:
-\[
-\Delta \vv \lambda = (\vv Q_z \vv S \vv Q^{\T}_z)^{-1} (- \vv Q_z (\vv z - \vv R
-\vv p))
-\]
+This system is tridiagonal because the operator \(\vv{ Q_z(\cdot)Q_z^{\T}} \)
+collapses each \( 3 \times 3 \) block in \( \vv S \) to a scalar
+value \(\vv{ z_i^T S_{(i,j)} z_j }\). This operation effectively reduces the
+block
+tridiagonal structure of \(\vv S \) to the plain tridiagonal structure in \(\vv{
+Q_zSQ_z^{\T}} \in \mathbb R^{m\times m} \). Also note that $\vv Q_z z = 1$
+appears in the RHS and so it could be further reduced to $\vv{Q_z R p - 1}$ but
+since the vector $\vv{z-Rp}$ is needed elsewhere this has neglectable practical
+benefit.
 
+\subsection{Solving for $\vv{\Delta z}$}
+To solve for \(\Delta \vv z\), we substitute \(\Delta \lambda = 0\) into the
+first row of \eqref{eq:newton}:
+\begin{align}
+\vv{(S^{-1} + D_\lambda) \Delta z = S^{-1} (z - Rp) - Q_z^{\T} \lambda}
+\label{eq:solve_z}
+\end{align}
+To avoid having to solve the dense system $\vv{S^{-1}+D_\lambda}$ we exploit
+that we can cheaply compute the cholesky decomposition $\vv{ LL^{\T} = S}$ and
+make use of the identity
+\begin{align}
+\vv{S^{-1} + D_\lambda = L^{-T} (I + L^T D_\lambda L) L^{-1}} \label{eq:ident}
+\end{align}
+we insert \eqref{eq:ident} into \eqref{eq:solve_z}
+
+\begin{align*}
+\vv{L^{-T} (I + L^T D_\lambda L) L^{-1} \Delta z} &= \vv{L^{-T} L^{-1} (z - Rp) - Q_z^{\T} \lambda} \\
+\end{align*}
+then multiplying with the invertible $\vv L^{\T}$
+\begin{align*}
+\vv{(I + L^T D_\lambda L)} \vv{L^{-1} \Delta z} &= \vv{L^{-1} (z - Rp) - L^T
+Q_z^{\T} \lambda}
+\end{align*}
+means we can solve for $\vv{u=L^{-\T}}\Delta z$ and then obtain $\vv \Delta z$
+like so
+\begin{align*}
+\vv{(I + L^T D_\lambda L) u} &=  \vv{L^{-1} (z - Rp) - L^T Q_z^{\T} \lambda}
+\end{align*}
+and then finally
+\begin{align*}
+\Delta \vv{z} &= \vv{L^{\T} u}
+\end{align*}
+The great advantage here is that $\vv{(I + L^T D_\lambda L) }$ remains block
+tridiagonal and so it's fast to solve. The disadvantage is that we need one
+extra
+solve of the block bidiagonal $\vv L$ to compute $\vv{L^{-1} (z - Rp)}$. This is
+annoying but still greatly outweighs the pain of solving a dense system using
+iterative methods. Note also that in the trivial case where $\vv{\lambda = 0}$
+the system reduces to the identity. In an effort to keep the eigenvalues of
+$\vv{(I + L^T D_\lambda L) }$
+positive, we clamp $\vv \lambda$ to positive values before we compute $\vv
+D_\lambda$. This is a hack but seems to work well in practice. We now proceed to
+list the full algorithm.
+\newpage
 \section{Algorithm}
 Here we'll outline the algorithm in full before explaining each step in detail:
 \begin{center}
@@ -197,7 +239,7 @@ while true do
     $\vv \lambda$ = solve($\vv{QSQ^{\T}}$, $\vv{Qy}$)
     $\vv{b_z}$ = solve($\vv L$, $\vv{y}$)
     $\vv{b_\lambda}$ = $\vv{L^{\T}Q^{\T}\lambda} $
-    if $\|\vv{bz-bl}\|^{2}$ < $\epsilon$ then
+    if $\|\vv{b_z-b_\lambda}\|^{2}$ < $\epsilon$ then
         $\vv s$ = solve($\vv{L^{\T}}$, $\vv{b_z}$)
         $\vv x$ = $\vv{p-M^{-1}R^{\T}s}$
         return $\vv x$
@@ -228,6 +270,8 @@ Note the following:
     the non-linear unit length constraints. We clamp it to be positive to keep
     the Hessian PD. This is a hack but seems to play out well in practice
 \end{itemize}
+\section{Test}
+
 
 \end{document}
 
