@@ -1,10 +1,36 @@
 cmake_minimum_required(VERSION 3.12)
 project(reposition)
 set(LIB_NAME reposition)
+set(EXEC_NAME reposition_exec)
 set(Python_FIND_VIRTUALENV ONLY)
 find_package(Python COMPONENTS Interpreter Development)
 
-#python ext
+
+if(EMSCRIPTEN)
+    add_executable(reposition_wasm solve.c)
+    #target_compile_options(reposition_wasm PRIVATE -O3)
+    target_link_options(reposition_wasm PRIVATE
+        "-sEXPORTED_FUNCTIONS=['_solve', '_malloc', '_free']"
+        "-sEXPORTED_RUNTIME_METHODS=['HEAPU8']"
+        "-sMODULARIZE"
+        "-sINITIAL_MEMORY=256mb"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sSTACK_SIZE=16mb"
+        "-sEXPORT_ES6"
+        "-sENVIRONMENT=web"
+        "-sEXPORT_NAME=${LIB_NAME}"
+    )
+
+else()
+
+
+add_executable(${EXEC_NAME} solve.c)
+option(ENABLE_ASAN "Enable AddressSanitizer" ON)
+if(ENABLE_ASAN)
+    target_compile_options(${EXEC_NAME} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+    target_link_options(${EXEC_NAME} PRIVATE -fsanitize=address)
+endif()
+
 if(Python_FOUND)
     execute_process(
         COMMAND ${Python_EXECUTABLE} -c
@@ -28,30 +54,10 @@ if(Python_FOUND)
     target_include_directories(${LIB_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(${LIB_NAME} PRIVATE ${Python_LIBRARIES})
 
-    #option(ENABLE_ASAN "Enable AddressSanitizer" ON)
-    #if(ENABLE_ASAN)
-    #    target_compile_options(${LIB_NAME} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-    #    target_link_options(${LIB_NAME} PRIVATE -fsanitize=address)
-    #endif()
-
     set_target_properties(${LIB_NAME} PROPERTIES
         PREFIX "${Python_MODULE_PREFIX}"
         SUFFIX ".${Python_SOABI}${CMAKE_SHARED_MODULE_SUFFIX}"
     )
 endif()
-
-if(EMSCRIPTEN)
-    add_executable(reposition_wasm solve.c)
-    #target_compile_options(reposition_wasm PRIVATE -O3)
-    target_link_options(reposition_wasm PRIVATE
-        "-sEXPORTED_FUNCTIONS=['_solve', '_malloc', '_free']"
-        "-sEXPORTED_RUNTIME_METHODS=['HEAPU8']"
-        "-sMODULARIZE"
-        "-sINITIAL_MEMORY=256mb"
-        "-sALLOW_MEMORY_GROWTH=1"
-        "-sSTACK_SIZE=16mb"
-        "-sEXPORT_ES6"
-        "-sENVIRONMENT=web"
-        "-sEXPORT_NAME=${LIB_NAME}"
-    )
 endif()
+
