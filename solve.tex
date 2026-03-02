@@ -32,6 +32,15 @@
 \maketitle
 \thispagestyle{empty}
 \newpage
+\section{Introduction}
+This note documents a practical algorithm for projecting a chain of points with
+unit-length constraints on consecutive difference vectors. The goal is not to
+present a formal paper, but to capture the derivation and the key numerical
+ideas behind an experimental solver. We reformulate the problem in terms of
+difference vectors, derive a Newton-like system, and then exploit the resulting
+block tridiagonal structure for fast direct solves. The emphasis is on clear
+steps and implementation-friendly formulas rather than theoretical optimality
+guarantees.
 \section{Formulation}
 We're going to solve
 \begin{align}
@@ -44,16 +53,16 @@ where
 \begin{center}
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{@{}cclp{0.6\textwidth}@{}}
-$n$ & $\in$ & $\mathbb N$ & is the number of particles between links \\
-$m$ & $\in$ & $\mathbb N$ & is the $n-1$ of links between particles \\
+$n$ & $\in$ & $\mathbb N$ & is the number of particles \\
+$m$ & $\in$ & $\mathbb N$ & is the number of links, $m = n-1$ \\
 $\vv x$ & $\in$ & $\mathbb R^{3n}$ & is the solution vector, \\
 $\vv p$ & $\in$ & $\mathbb R^{3n}$ & is target/free moving positions, \\
 $\vv z$ & $\in$ & $\mathbb R^{\mathrm{3m}}$ & is the vector of difference vectors in the chain, \\
 $\vv z_i$ & $\in$ & $\mathbb R^{\mathrm{3}}$ & is the $i$th 3-vector in $\vv z$, \\
-$\vv R$ & $\in$  & $\mathbb R^{\mathrm{3m\times3n}}$ & is the per vector
+$\vv R$ & $\in$  & $\mathbb R^{\mathrm{3m\times3n}}$ & is the per-edge
 finite-difference matrix so that $(\vv R \vv x)_i = \vv x_{i} - \vv x_{i+1}$ \\
 $\vv M$ & $\in$ & $\mathbb R^{\mathrm{3n\times3n}}$ & is the mass matrix, simply
-having the mass (or weight) of each particlein each 3x3 block diagonal \\
+having the mass (or weight) of each particle in each $3\times3$ block diagonal \\
 \end{tabular}
 \end{center}
 We want to be working only on the difference vectors in $\vv z$. To do that, we
@@ -75,29 +84,31 @@ solving for $\vv \lambda$ gives us:
 (\vv z-\vv{Rp})
 \end{align*}
 where $\vv S = \vv R \vv M^{-1} \vv R^{\T} \in \mathbb R^{3m \times 3m}$ is a
-block tridiagonal SPD matix. We use this to give us an expression for $\vv x$:
+block tridiagonal SPD matrix. We use this to give us an expression for $\vv x$:
 \begin{align*}
 \vv x = \vv p + \vv M^{-1}\vv R^{\T} \vv S^{-1}(\vv z - \vv R\vv p)
 \end{align*}
 Inserting this into \eqref{eq:orig} eliminates $\mathbf z = \mathbf R \mathbf x
 $ and we are left with
 \begin{align}
-\min_{\vv x} \quad &  \frac{1}{2} \; \vv{(z-Rp)}^{\T} \vv S^{-1} \vv
+\min_{\vv z} \quad &  \frac{1}{2} \; \vv{(z-Rp)}^{\T} \vv S^{-1} \vv
 {(z-Rp)} \label{eq:main}\\
 \text{s.t} \quad & \vv z_i^{\T}\vv z_i = 1 \quad i=1\dots m \nonumber
 \end{align}
-In this reformulated problem we must find a $\vv z$ that consist of unit length
+In this reformulated problem we must find a $\vv z$ that consists of unit length
 3-vectors that minimize the distance to $\vv{Rp}$ under the $\vv S^{-1}$-norm.
 Note that it is trivial to project $\vv z$ to satisfy the unit length
 constraints (under the regular $\vv I$-norm, known as normalization), and
 likewise it is trivial to
 obtain $\vv x$ given any $\vv z$.
-This means that whenever we take a newton step on $\vv z$ we can trivially reign
-it in to its feasible solution, and in effect only change the directions of
-each $\vv z_i$ vector, never their lengths.
+This means that whenever we take a Newton step on $\vv z$ we can trivially rein
+it to its feasible solution, and in effect only change the directions of
+each $\vv z_i$ vector, never their lengths. Throughout, $\vv M$, $\vv R$,
+$\vv S$, and $\vv p$ are fixed inputs; $\vv z$ is the variable we iterate, and
+$\vv \lambda$ is re-estimated each loop.
 \section{Solution}
-We want to solve this system using a newton-like method, so to make sense of
-that we first derive the full newton step. The Lagrangian of \eqref{eq:main} is
+We want to solve this system using a Newton-like method, so to make sense of
+that we first derive the full Newton step. The Lagrangian of \eqref{eq:main} is
 \begin{align}
 \mathcal{L}_{(\vv z, \vv \lambda)} = \frac{1}{2} \vv{(z-Rp)}^{\T} \vv S^{-1}
 \vv{(z-Rp)} + \frac{1}{2} \sum_{i=1}^{m} \lambda_i (\vv z_i^{\T} \vv z_i - 1)
@@ -108,13 +119,13 @@ The optimality conditions for \eqref{eq:lagrange} are:
 \vv S^{-1} (\vv z - \vv{Rp}) + \vv{Q_z}^{\T} \vv \lambda &= 0 \\
 \vv z_i^{\T} \vv z_i - 1 &= 0 \quad i=1,\dots,m
 \end{align*}
-and the newton step to find a stationary point $\vv{(z,\lambda)}$ for
+and the Newton step to find a stationary point $\vv{(z,\lambda)}$ for
 \eqref{eq:lagrange} is
 \begin{align}
 \underbrace{
 \begin{bmatrix}
 \vv S^{-1}+\vv{D_\lambda} & \vv Q^{\T}_z \\
-\vv Q_z & \\
+\vv Q_z & \vv 0 \\
 \end{bmatrix}
 }_{H \mathcal{L}_{(\vv z, \vv \lambda)}   }
 \begin{bmatrix}
@@ -122,10 +133,10 @@ and the newton step to find a stationary point $\vv{(z,\lambda)}$ for
 \Delta \vv \lambda \\
 \end{bmatrix}
 =
-\underbrace{
+\,-\underbrace{
 \begin{bmatrix}
 \vv S^{-1}(\vv z - \vv R \vv p) + \vv Q_z^{\T} \vv \lambda \\
-\vv{Q_z z-1} \\
+\frac{1}{2}\vv{(Q_z z-1)} \\
 \end{bmatrix}
 }_{ \nabla \mathcal{L}_{(\vv z, \vv \lambda)}  } \label{eq:newton}
 \end{align}
@@ -148,28 +159,29 @@ where
  \in \mathbb R^{3m\times 3m} \\
 \end{align*}
 There are many interesting ways to go about solving this system, but in our case
-the goal is the exploint the tri-diagonal structure of $\vv S$, in order to
+the goal is to exploit the tridiagonal structure of $\vv S$, in order to
 use fast direct solves. Instead of solving the full step, we first solve just
 for $\vv{\Delta \lambda}$ at $\vv{\lambda = 0}$, effectively resetting the
-multipliers in each iteration. After that we solve for $\vv \Delta z$ to update
-the solution variables.
+multipliers in each iteration. This is not standard Newton, but in practice it
+improves stability and keeps each linear system sparse and well-conditioned.
+After that we solve for $\vv \Delta z$ to update the solution variables.
 
 \subsection{Solving for $\vv{\lambda}$}
 To derive the solution for \(\Delta \lambda\) we eliminate \(\Delta z\) by using
 $\vv{\lambda = 0}$ and solving the first row in \eqref{eq:newton}.
 Interestingly, because we will
-project the vectors in $\vv z$ in each iteration the $\vv{Q_z z-1}$ term is
+project the vectors in $\vv z$ in each iteration, the $\vv{Q_z z-1}$ term is
 always $0$, which will simplify things a bit:
 \begin{align*}
-\Delta \vv z = \vv S (\vv Q^{\T}_z \Delta \vv \lambda + \vv S^{-1}(\vv z - \vv R
+\Delta \vv z = -\vv S (\vv Q^{\T}_z \Delta \vv \lambda + \vv S^{-1}(\vv z - \vv R
 \vv p))
 \end{align*}
 Substitute \(\Delta \vv z\) into the second row in \eqref{eq:newton}:
 \begin{align*}
-\vv Q_z (\vv S (\vv Q^{\T}_z \Delta \vv \lambda + \vv S^{-1}(\vv z - \vv R \vv
-p))) = \underbrace{\vv{Q_z z-1}}_{\vv 0}
+\vv Q_z (-\vv S (\vv Q^{\T}_z \Delta \vv \lambda + \vv S^{-1}(\vv z - \vv R \vv
+p))) = \frac{1}{2}\underbrace{\vv{(Q_z z-1)}}_{\vv 0}
 \end{align*}
-Simplify to solve for \(\Delta \vv \lambda\) we get:
+Simplifying to solve for \(\Delta \vv \lambda\), we get:
 \[
 \vv Q_z \vv S \vv Q^{\T}_z \Delta \vv \lambda = -\vv Q_z (\vv z - \vv R \vv p)
 \]
@@ -180,14 +192,14 @@ block
 tridiagonal structure of \(\vv S \) to the plain tridiagonal structure in \(\vv{
 Q_zSQ_z^{\T}} \in \mathbb R^{m\times m} \). Also note that $\vv Q_z z = 1$
 appears in the RHS and so it could be further reduced to $\vv{Q_z R p - 1}$ but
-since the vector $\vv{z-Rp}$ is needed elsewhere this has neglectable practical
+since the vector $\vv{z-Rp}$ is needed elsewhere this has negligible practical
 benefit.
 
 \subsection{Solving for $\vv{\Delta z}$}
 To solve for \(\Delta \vv z\), we substitute \(\Delta \lambda = 0\) into the
 first row of \eqref{eq:newton}:
 \begin{align}
-\vv{(S^{-1} + D_\lambda) \Delta z = S^{-1} (z - Rp) - Q_z^{\T} \lambda}
+\vv{(S^{-1} + D_\lambda) \Delta z = -S^{-1} (z - Rp) - Q_z^{\T} \lambda}
 \label{eq:solve_z}
 \end{align}
 To avoid having to solve the dense system $\vv{S^{-1}+D_\lambda}$ we exploit
@@ -196,24 +208,24 @@ make use of the identity
 \begin{align}
 \vv{S^{-1} + D_\lambda = L^{-T} (I + L^T D_\lambda L) L^{-1}} \label{eq:ident}
 \end{align}
-we insert \eqref{eq:ident} into \eqref{eq:solve_z}
+We insert \eqref{eq:ident} into \eqref{eq:solve_z}
 
 \begin{align*}
-\vv{L^{-T} (I + L^T D_\lambda L) L^{-1} \Delta z} &= \vv{L^{-T} L^{-1} (z - Rp) - Q_z^{\T} \lambda} \\
+\vv{L^{-T} (I + L^T D_\lambda L) L^{-1} \Delta z} &= \vv{-L^{-T} L^{-1} (z - Rp) - Q_z^{\T} \lambda} \\
 \end{align*}
-then multiplying with the invertible $\vv L^{\T}$
+Then, multiplying with the invertible $\vv L^{\T}$
 \begin{align*}
-\vv{(I + L^T D_\lambda L)} \vv{L^{-1} \Delta z} &= \vv{L^{-1} (z - Rp) - L^T
+\vv{(I + L^T D_\lambda L)} \vv{L^{-1} \Delta z} &= \vv{-L^{-1} (z - Rp) - L^T
 Q_z^{\T} \lambda}
 \end{align*}
-means we can solve for $\vv{u=L^{-\T}}\Delta z$ and then obtain $\vv \Delta z$
+means we can solve for $\vv{u=L^{-1}}\Delta z$ and then obtain $\vv \Delta z$
 like so
 \begin{align*}
-\vv{(I + L^T D_\lambda L) u} &=  \vv{L^{-1} (z - Rp) - L^T Q_z^{\T} \lambda}
+\vv{(I + L^T D_\lambda L) u} &=  \vv{-L^{-1} (z - Rp) - L^T Q_z^{\T} \lambda}
 \end{align*}
 and then finally
 \begin{align*}
-\Delta \vv{z} &= \vv{L^{\T} u}
+\Delta \vv{z} &= \vv{L u}
 \end{align*}
 The great advantage here is that $\vv{(I + L^T D_\lambda L) }$ remains block
 tridiagonal and so it's fast to solve. The disadvantage is that we need one
@@ -232,7 +244,7 @@ Here we'll outline the algorithm in full before explaining each step in detail:
 \begin{center}
 \begin{lstlisting}[]
 $\vv L$ = cholesky($\vv{S}$)
-$\vv z$ = $\vv{Rx}$
+$\vv z$ = $\vv{Rp}$  // or warm start from previous $\vv z$
 while true do
     $\vv Q$,$\vv z$ = normalize($\vv z$)
     $\vv y$ = $\vv{Rp-z}$
@@ -257,21 +269,15 @@ Each iteration the algorithm does these main steps:
 \end{enumerate}
 Note the following:
 \begin{itemize}
-    \item we compute the cholesky decomposition $\vv{LL^{\T}=S}$ to keep the
-    systems we need to solve sparse and symmetric. See more details bellow.
-    Computing cholesky for a block-tridiagonal SPD matrix is simple and fast,
-    and if $\vv M$ is fixed it can be done off-line/once.
-    \item every \texttt{solve()} is at least a block tri-diagonal system (or
-    simpler), which are fast and easy to solve
-    \item to compute the Lagrange multipliers we build the Jacobian matrix $\vv
-    Q \in \mathbb R^{3m\times m}$, which is simply the $\vv z_i$ vectors
-    vertically stacked
-    \item the matrix $\vv D$ is the contribution to the Hessian stemming from
-    the non-linear unit length constraints. We clamp it to be positive to keep
-    the Hessian PD. This is a hack but seems to play out well in practice
+    \item we precompute the Cholesky factor $\vv{LL^{\T}=S}$ once if $\vv M$ is
+    fixed, and reuse it in every iteration to keep all solves sparse
+    \item the sign convention is handled by setting $\vv y = \vv{Rp-z}$, so the
+    Newton right-hand side becomes $\vv{b_z-b_\lambda}$ in the factored system
+    \item $\vv Q$ is block diagonal with row blocks $\vv z_i^{\T}$, so
+    $\vv{QSQ^{\T}}$ is plain tridiagonal and fast to solve
+    \item clamping $\vv \lambda$ before forming $\vv D$ keeps
+    $\vv{I+L^{\T}DL}$ positive definite; this is a pragmatic stabilizer rather
+    than a theoretical guarantee
 \end{itemize}
 \section{Test}
-
-
 \end{document}
-
