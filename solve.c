@@ -366,7 +366,7 @@ void mul(int n, const scalar* p, const scalar* p2, scalar* v) {
     }
 }
 
-void div(int n,  const scalar* p, const scalar* p2, scalar* v) {
+void div(int n, const scalar* p, const scalar* p2, scalar* v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] / p2[i];
     }
@@ -385,12 +385,14 @@ void squared_norm(int n, const scalar* p, scalar* v) {
     }
 }
 
-scalar solve(const int N, scalar tol, int max_iter, const scalar* p, const scalar* m, scalar* x, scalar* stats) {
+scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
+             const scalar* m, scalar* x, scalar* stats) {
     double t0 = wtime();
     const int M = N - 1;
     scalar zero[N * 3] = {};
     scalar ones[N * 3];
     set(N * 3, ones, 1);
+
     // R
     scalar Rd[N];
     set(N, Rd, -1);
@@ -401,9 +403,9 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p, const scala
     // M inv
     scalar Md[N];
     div(N, ones, m, Md);
-    //Md[0] = 1;
-    //Md[N - 1] = 1;
-    // trace(N, Md, "Md");
+    // Md[0] = 1;
+    // Md[N - 1] = 1;
+    //  trace(N, Md, "Md");
 
     scalar z[M * 3] = {};
     scalar Ad[N] = {};
@@ -420,7 +422,7 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p, const scala
     scalar Ll[M] = {};
 
     int r = cholesky(M, Ad, Au, Ld, Ll);
-    //printf("chol = %d\n", r);
+    // printf("chol = %d\n", r);
 
     // trace(M, Ld, "L diag" );
     // trace(M, Ll, "L lower" );
@@ -495,7 +497,7 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p, const scala
             //printf("e=%f\n", e);
 
             // exit
-            if (e < tol || j >= max_iter ) {
+            if (e < tol || j >= max_iter) {
                 scalar rhs2[N * 3] = {};
                 scalar Ltinvbz_pad[N * 3] = {};
                 upper_bidiag_block_solve(M, 3, Ld, Ll, bz, Ltinvbz_pad);
@@ -506,10 +508,10 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p, const scala
                 // trace( N*3, rhs2, "M RT LTinv bz");
                 sub(N * 3, p, rhs2, x);
                 scalar t1 = wtime();
-                stats[0] = t1-t0; // time
-                stats[1] = e; // error
-                stats[2] = j; // iterations
-                //printf("time=%f\n", t1 - t0);
+                stats[0] = t1 - t0;  // time
+                stats[1] = e;        // error
+                stats[2] = j;        // iterations
+                // printf("time=%f\n", t1 - t0);
                 return e;
             }
 
@@ -551,5 +553,5 @@ int main() {
 
     p[(N - 1) * 3] += 12.1;
     // p[(N-1)*3+1] += 3.1;
-    solve(N, 1.0e-15, 6,  p, m, x, stats);
+    solve(N, 1.0e-15, 6, p, m, x, stats);
 }
