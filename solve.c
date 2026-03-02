@@ -21,60 +21,36 @@ static inline double wtime(void) {
  *
  * Returns 0 on success, -1 if A is not SPD.
  */
-int sym_tridiag_solve_cholesky(int n, const scalar* Ad, const scalar* Al,
-                      const scalar* b, scalar* x) {
-    if (n <= 0) return -1;
-
-    /* factor A = L L^T */
-    scalar Ld[n];
-    scalar Ll[n];
-
-    if (Ad[0] <= 0.0) return -1;
-    Ld[0] = sqrt(Ad[0]);
-    Ll[0] = 0.0;
-
-    for (int i = 1; i < n; i++) {
-        Ll[i] = Al[i] / Ld[i - 1];
-        scalar t = Ad[i] - Ll[i] * Ll[i];
-        if (t <= 0.0) return -1;
-        Ld[i] = sqrt(t);
-    }
-
-    /* forward solve: L y = b */
-    x[0] = b[0] / Ld[0];
-    for (int i = 1; i < n; i++) {
-        x[i] = (b[i] - Ll[i] * x[i - 1]) / Ld[i];
-    }
-
-    /* backward solve: L^T x = y */
-    x[n - 1] = x[n - 1] / Ld[n - 1];
-    for (int i = n - 2; i >= 0; i--) {
-        x[i] = (x[i] - Ll[i + 1] * x[i + 1]) / Ld[i];
-    }
-
-    return 0;
-}
-
 int sym_tridiag_solve(int n, const scalar* Ad, const scalar* Al,
-                      const scalar* b, scalar* x) {
+                      const scalar* b, scalar* x)  // allowed buffer
+{
     if (n <= 0) return -1;
-
-    scalar c[n];
     scalar d[n];
+    /* Forward sweep (LDLᵀ factorization implicitly) */
 
-    c[0] = Al[1] / Ad[0];
-    d[0] = b[0] / Ad[0];
+    d[0] = Ad[0];
+    if (d[0] <= 0.0) return -1;
+
+    x[0] = b[0];
 
     for (int i = 1; i < n; i++) {
-        scalar denom = Ad[i] - Al[i] * c[i - 1];
-        if (denom == 0.0) return -1;
-        c[i] = Al[i + 1] / denom;
-        d[i] = (b[i] - Al[i] * d[i - 1]) / denom;
+        scalar l = Al[i] / d[i - 1];
+
+        d[i] = Ad[i] - l * Al[i];
+        if (d[i] <= 0.0) return -1;
+
+        x[i] = b[i] - l * x[i - 1];
     }
 
-    x[n - 1] = d[n - 1];
+    /* Solve D y = x */
+    for (int i = 0; i < n; i++) {
+        x[i] /= d[i];
+    }
+
+    /* Backward solve Lᵀ x = y */
     for (int i = n - 2; i >= 0; i--) {
-        x[i] = d[i] - c[i] * x[i + 1];
+        scalar l = Al[i + 1] / d[i];
+        x[i] -= l * x[i + 1];
     }
 
     return 0;
@@ -96,7 +72,7 @@ int sym_tridiag_solve(int n, const scalar* Ad, const scalar* Al,
 int sym_tridiag_block_solve_direct(int n, int bs, const scalar* Ad,
                                    const scalar* Al, const scalar* B,
                                    scalar* X) {
-    const scalar eps = 1.0e-7;
+    //const scalar eps = 1.0e-7;
     /* workspace for modified diagonal */
     scalar D[n];
 
@@ -104,7 +80,7 @@ int sym_tridiag_block_solve_direct(int n, int bs, const scalar* Ad,
 
     /* i = 0 */
     D[0] = Ad[0];
-    if (D[0] * D[0] < eps) return -1;
+    //if (D[0] * D[0] < eps) return -1;
 
     for (int k = 0; k < bs; k++) X[k] = B[k];
 
@@ -112,7 +88,7 @@ int sym_tridiag_block_solve_direct(int n, int bs, const scalar* Ad,
     for (int i = 1; i < n; i++) {
         scalar ell = Al[i] / D[i - 1];
         D[i] = Ad[i] - ell * ell * D[i - 1];
-        if (D[i] * D[i] < eps) return -1;
+        //if (D[i] * D[i] < eps) return -1;
 
         int off = i * bs;
         int offm = (i - 1) * bs;
