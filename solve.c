@@ -21,7 +21,7 @@ static inline double wtime(void) {
  *
  * Returns 0 on success, -1 if A is not SPD.
  */
-int sym_tridiag_solve(int n, const scalar* Ad, const scalar* Al,
+int sym_tridiag_solve_cholesky(int n, const scalar* Ad, const scalar* Al,
                       const scalar* b, scalar* x) {
     if (n <= 0) return -1;
 
@@ -50,6 +50,31 @@ int sym_tridiag_solve(int n, const scalar* Ad, const scalar* Al,
     x[n - 1] = x[n - 1] / Ld[n - 1];
     for (int i = n - 2; i >= 0; i--) {
         x[i] = (x[i] - Ll[i + 1] * x[i + 1]) / Ld[i];
+    }
+
+    return 0;
+}
+
+int sym_tridiag_solve(int n, const scalar* Ad, const scalar* Al,
+                      const scalar* b, scalar* x) {
+    if (n <= 0) return -1;
+
+    scalar c[n];
+    scalar d[n];
+
+    c[0] = Al[1] / Ad[0];
+    d[0] = b[0] / Ad[0];
+
+    for (int i = 1; i < n; i++) {
+        scalar denom = Ad[i] - Al[i] * c[i - 1];
+        if (denom == 0.0) return -1;
+        c[i] = Al[i + 1] / denom;
+        d[i] = (b[i] - Al[i] * d[i - 1]) / denom;
+    }
+
+    x[n - 1] = d[n - 1];
+    for (int i = n - 2; i >= 0; i--) {
+        x[i] = d[i] - c[i] * x[i + 1];
     }
 
     return 0;
