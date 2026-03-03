@@ -10,6 +10,7 @@ m = np.array([0.001 if n > 0 and n < N-1 else 1.0 for n in range(N)])
 stats = np.zeros(8)
 
 reposition.solve2(1e-15, 15, p, m, x0, stats)
+print(stats)
 
 Mi, R, L2 = solve.setup(m)
 x1,_ = solve.solve(p.reshape(-1, 1), Mi, R, L2, maxiter=15, tol=1e-15)
