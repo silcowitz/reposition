@@ -25,7 +25,8 @@ else()
 
 
 add_executable(${EXEC_NAME} solve.c)
-option(ENABLE_ASAN "Enable AddressSanitizer" ON)
+target_link_libraries(${EXEC_NAME} PRIVATE m)
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 if(ENABLE_ASAN)
     target_compile_options(${EXEC_NAME} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
     target_link_options(${EXEC_NAME} PRIVATE -fsanitize=address)
@@ -52,7 +53,7 @@ if(Python_FOUND)
     target_include_directories(${LIB_NAME} PRIVATE ${Python_INCLUDE_DIRS})
     target_include_directories(${LIB_NAME} PRIVATE ${NUMPY_INCLUDE})
     target_include_directories(${LIB_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
-    target_link_libraries(${LIB_NAME} PRIVATE ${Python_LIBRARIES})
+    target_link_libraries(${LIB_NAME} PRIVATE ${Python_LIBRARIES} m)
 
     set_target_properties(${LIB_NAME} PROPERTIES
         PREFIX "${Python_MODULE_PREFIX}"
