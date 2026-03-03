@@ -410,8 +410,8 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
     //  trace(N, Md, "Md");
 
     scalar z[M * 3];
-    scalar Ad[N];
-    scalar Au[N];
+    scalar Ad[M];
+    scalar Au[M];
 
     // A = R M RT
     sum(M, Md, &Md[1], Ad);
@@ -502,6 +502,7 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
             if (e < tol || j >= max_iter) {
                 scalar rhs2[N * 3];
                 scalar Ltinvbz_pad[N * 3];
+                set(N*3, Ltinvbz_pad, 0);
                 upper_bidiag_block_solve(M, 3, Ld, Ll, bz, Ltinvbz_pad);
                 // trace( N*3, Ltinvbz_pad, "LTinv bz");
                 lower_bidiag_block_mul(N, 3, Rd, Ru, Ltinvbz_pad, rhs2);
