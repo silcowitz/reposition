@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 static inline double wtime(void) {
@@ -389,7 +390,8 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
              const scalar* m, scalar* x, scalar* stats) {
     double t0 = wtime();
     const int M = N - 1;
-    scalar zero[N * 3] = {};
+    scalar zero[N * 3];
+    memset(&zero[0], 1, sizeof(zero));
     scalar ones[N * 3];
     set(N * 3, ones, 1);
 
@@ -407,9 +409,9 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
     // Md[N - 1] = 1;
     //  trace(N, Md, "Md");
 
-    scalar z[M * 3] = {};
-    scalar Ad[N] = {};
-    scalar Au[N] = {};
+    scalar z[M * 3];
+    scalar Ad[N];
+    scalar Au[N];
 
     // A = R M RT
     sum(M, Md, &Md[1], Ad);
@@ -418,8 +420,8 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
     // trace(N, Ad, "A diag" );
     // trace(N, Au, "A upper" );
 
-    scalar Ld[M] = {};
-    scalar Ll[M] = {};
+    scalar Ld[M];
+    scalar Ll[M];
 
     int r = cholesky(M, Ad, Au, Ld, Ll);
     // printf("chol = %d\n", r);
@@ -428,7 +430,7 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
     // trace(M, Ll, "L lower" );
 
     // z = Rp
-    scalar Rp[N * 3] = {};
+    scalar Rp[N * 3];
     upper_bidiag_block_mul(N, 3, Rd, Ru, p, Rp);
     // block_upper_tridiag_mv( N, 3, Rd, Ru, x, z); // z=Rx
     sum(M * 3, Rp, zero, z);  // z=Rp
@@ -444,10 +446,10 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
         // trace(M*3, z, "z");
 
         // solve lambda
-        scalar lamb[M] = {};
+        scalar lamb[M];
         {
-            scalar Sd[M] = {};
-            scalar Su[M] = {};
+            scalar Sd[M];
+            scalar Su[M];
 
             // Q L LT QT
             form_QT_A_Q_tridiag(M, 3, Au, Ad, z, Su, Sd);
@@ -455,7 +457,7 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
             // trace(M, Sd, "Sd");
             // trace(M, Su, "Su");
 
-            scalar rhs[M] = {};
+            scalar rhs[M];
 
             // Q(Rp-z)
             q_dots(M, 3, z, Rp, rhs);
@@ -469,7 +471,7 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
         // bz
         scalar bz[M * 3];
         {
-            scalar rhs[M * 3] = {};
+            scalar rhs[M * 3];
             sub(M * 3, Rp, z, rhs);
             // trace( M*3, rhs, "rhs");
             lower_bidiag_block_solve(M, 3, Ld, Ll, rhs, bz);
@@ -477,16 +479,16 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
         }
 
         // bl
-        scalar bl[M * 3] = {};
+        scalar bl[M * 3];
         {
-            scalar tmp[M * 3] = {};
+            scalar tmp[M * 3];
             q_products(M, 3, z, lamb, tmp);
             upper_bidiag_block_mul(M, 3, Ld, Ll, tmp, bl);
             // trace( M*3, bl, "bl");
         }
 
         // dz step
-        scalar dz[M * 3] = {};
+        scalar dz[M * 3];
         {
             scalar rhs[M * 3];
             scalar tmp[M * 3];
@@ -498,8 +500,8 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
 
             // exit
             if (e < tol || j >= max_iter) {
-                scalar rhs2[N * 3] = {};
-                scalar Ltinvbz_pad[N * 3] = {};
+                scalar rhs2[N * 3];
+                scalar Ltinvbz_pad[N * 3];
                 upper_bidiag_block_solve(M, 3, Ld, Ll, bz, Ltinvbz_pad);
                 // trace( N*3, Ltinvbz_pad, "LTinv bz");
                 lower_bidiag_block_mul(N, 3, Rd, Ru, Ltinvbz_pad, rhs2);
@@ -515,8 +517,8 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
                 return e;
             }
 
-            scalar Sd[M] = {};
-            scalar Su[M] = {};
+            scalar Sd[M];
+            scalar Su[M];
 
             max(M, lamb, 0, lamb);
             // S = I + LT D(lamb) L
