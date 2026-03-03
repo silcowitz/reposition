@@ -538,16 +538,16 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
 
 int main() {
     enum { N = 1024 * 16 };
-    scalar p[N * 3] = {};
-    scalar x[N * 3] = {};
-    scalar m[N] = {};
-    scalar stats[8] = {};
+    scalar p[N * 3];
+    scalar x[N * 3];
+    scalar m[N];
+    scalar stats[8];
 
     for (int i = 0; i < N; ++i) {
         m[i] = 1;
-        p[i * 3] = (float)i * 1;
-        p[i * 3 + 1] = 0;
-        p[i * 3 + 2] = 0;
+        x[i*3] = p[i * 3] = (float)i * 1;
+        x[i*3 + 1] = p[i * 3 + 1] = 0;
+        x[i*3 + 2] = p[i * 3 + 2] = 0;
     }
     p[0] -= 31.1;
     p[1] -= 213.1;
@@ -555,5 +555,9 @@ int main() {
 
     p[(N - 1) * 3] += 12.1;
     // p[(N-1)*3+1] += 3.1;
-    solve(N, 1.0e-15, 6, p, m, x, stats);
+    solve(N, 1.0e-15, 15, p, m, x, stats);
+
+    printf("time = %f\n", stats[0]);
+    printf("error = %e\n", stats[1]);
+    printf("iters = %f\n", stats[2]);
 }
