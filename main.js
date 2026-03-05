@@ -16,30 +16,39 @@ const conf = {
     error: 0,
     solveTime: 0,
     iters: 0,
-    max_iter: 15,
+    max_iter: 25,
     tol_exp: -7,
-    gravity: true,
+    gravity: false,
     momentum: true,
     floor: true,
     mass_ratio: -3,
     beads: 2,
     fix: 0,
-    N: 1024,
+    N: 1024*8,
 };
 
+let single_step = true;
 function reset1() {
+    const S = 120;
+    const a = 1;
+    const b = Math.sqrt(2);
+    const c = Math.PI;
+    const dt = 0.02;
+    let t = 0;
     for (let i = 0; i < N; i++) {
-        x[i * 3 + 0] = i * Math.cos(i * 0.1) * 0.1;
-        x[i * 3 + 1] = i * Math.sin(i * 0.1) * 0.1;
-        x[i * 3 + 2] = i * 0.01 - 250;
-        m[i] =
-            i === 0 || i === N - 1 || i === N / 4 || i % (N / 4) === 0
-                ? 1
-                : 0.001;
+        x[i * 3 + 1] = S * Math.sin(a * t);
+        x[i * 3 + 0] = S * Math.sin(b * t);
+        x[i * 3 + 2] = S * Math.sin(c * t);
+        t += dt;
+        //m[i] =
+        //    i === 0 || i === N - 1 || i === N / 4 || i % (N / 4) === 0 ? 1 : 1;
     }
+
     x0.set(x);
     p.set(x);
+    //single_step = true;
 }
+
 reset1();
 
 import {
@@ -181,7 +190,7 @@ gui.domElement.style.top = "auto";
 gui.domElement.style.width = "auto";
 
 gui.add({ reset: reset1 }, "reset");
-gui.add(conf, "N", 128, 1024 * 8, 1);
+gui.add(conf, "N", 128, 1024 * 16, 1);
 gui.add(conf, "beads", 2, 16, 1);
 gui.add(conf, "fix", { "end-points": 0, between: 1 });
 gui.add(conf, "floor");
@@ -197,7 +206,6 @@ gui.add(conf, "solveTime", 0, 5)
     .disable()
     .name("solve ms");
 gui.add(conf, "iters", 1, 64).listen().disable().name("solver iters");
-let single_step = false;
 
 function animate() {
     requestAnimationFrame(animate);
@@ -291,14 +299,14 @@ function animate() {
     for (let i = 0; i < conf.N; i++) {
         if (m[i] === 1.0) {
             dummy.position.fromArray(vertices, i * 3);
-            dummy.scale.set(1, 1, 1);
+            dummy.scale.set(.5, .5, .5);
             dummy.updateMatrix();
             tmp_color.set(0xff0000);
             instancedMesh.setColorAt(j, tmp_color);
             instancedMesh.setMatrixAt(j, dummy.matrix);
             j++;
             if (i == drag_vert) {
-                dummy.scale.set(1.5, 1.5, 1.5);
+                dummy.scale.set(1.0, 1.0, 1.0);
                 tmp_color.set(0xffffff);
                 dummy.updateMatrix();
                 instancedMesh.setColorAt(j, tmp_color);
