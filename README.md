@@ -11,7 +11,7 @@ The main advantages of this are
 
 ## Code
 
-The code in the repo is not super optimal, but the main goal was to have a simple C implementation that
+The code in the repo is not super optimal, in particular it's a memory hog, and only work with stack allocation, limiting the problem sizes. Sill, the main goal was to have a simple C implementation that
   1. is fast enough to make a useful demo
   2. can be easily compiled to web-assembly target
   3. can be used as a boiler-plate for more effecient implementations later on

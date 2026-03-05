@@ -1,10 +1,20 @@
 \documentclass[14pt]{extarticle}
-    \title{Projecting chains of constrained points}
+    \title{Projecting chains of distance constrained points}
     \author{Morten Silcowitz}
-    \date{Feb 2026}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{alltt}
+\usepackage{graphicx}
+\usepackage{subcaption}
+
+\newread\captionfile
+\newcommand{\tempcaption}{}
+\newcommand{\filecaption}[1]{%
+  \openin\captionfile=#1
+  \read\captionfile to \tempcaption
+  \closein\captionfile
+  \tempcaption
+}
 
 \newcommand*{\vv}[1]{\mathbf{#1}}
 \newcommand{\T}{\text{T}}
@@ -30,7 +40,48 @@
 \lstset{style=mystyle}
 \begin{document}
 \maketitle
-\thispagestyle{empty}
+\begin{center}
+  \includegraphics[width=0.75\columnwidth]{helix_last.png}
+\end{center}
+
+\newcommand{\testplot}[2]{
+\begin{figure}
+  \centering
+  \textbf{#2}\par
+  \begin{subfigure}{0.48\columnwidth}
+    \centering
+    \includegraphics[width=\linewidth]{#1_00.png}
+    \caption{Iteration 0}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\columnwidth}
+    \centering
+    \includegraphics[width=\linewidth]{#1_01.png}
+    \caption{Iteration 1}
+  \end{subfigure}
+
+  \vspace{0.5em}
+
+  \begin{subfigure}{0.48\columnwidth}
+    \centering
+    \includegraphics[width=\linewidth]{#1_last.png}
+    \caption{Last iteration}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\columnwidth}
+    \centering
+    \includegraphics[width=\linewidth]{#1.pdf}
+    \caption{Convergence}
+  \end{subfigure}
+
+  \caption[#2]{The blue curve shows the target positions, while the red curve
+  shows the solution positions. The points are rendered as a continuous curves
+  for better visualization. \filecaption{#1.txt}}
+\end{figure}
+}
+% In preamble:
+% \usepackage{subcaption}
+%\thispagestyle{empty}
 \newpage
 \section{Introduction}
 This note documents a practical algorithm for projecting a chain of points with
@@ -251,7 +302,7 @@ while true do
     $\vv \lambda$ = solve($\vv{QSQ^{\T}}$, $\vv{Qy}$)
     $\vv{b_z}$ = solve($\vv L$, $\vv{y}$)
     $\vv{b_\lambda}$ = $\vv{L^{\T}Q^{\T}\lambda} $
-    if $\|\vv{b_z-b_\lambda}\|^{2}$ < $\epsilon$ then
+    if $\frac{\|\vv{b_z-b_\lambda}\|}{\|\vv{b_z}+\epsilon\|}<\epsilon_{tol}$ then
         $\vv s$ = solve($\vv{L^{\T}}$, $\vv{b_z}$)
         $\vv x$ = $\vv{p-M^{-1}R^{\T}s}$
         return $\vv x$
@@ -280,4 +331,25 @@ Note the following:
     than a theoretical guarantee
 \end{itemize}
 \section{Test}
+We find that the best way to get a feel for how this algorithm behaves in
+animation and/or simulation settings, is to play around with the interactive
+demo. The C implementation used in the following tests as well as in the demo is
+a naive
+implementation that just operates on the raw input. There is no scaling,
+clamping, or other techniques to avoid blow-ups or errors. Notably there is no
+line-search type handling of the step-size, the solution is simply
+normalized per $\vv{z_i}$ vector after each update. As is probably expected, the
+algorithm converges
+more slowly when the difference between the initial starting solution and the
+final solution is large. Often the initial solution is close to the converged
+solution in animation problem. Still the algorithm shows decent linear
+convergence to machine precision in the following tests, where the final
+solution if far from the initial and also far from the target positions. We find
+that in animation type scenarios, convergence can be much faster.
+\testplot{circle}{Circle}
+\testplot{helix}{Helix}
+\testplot{knot}{Knot}
+\testplot{lorenz}{Lorenz}
+%\testplot{animation}{Animation}
+
 \end{document}
