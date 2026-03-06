@@ -104,10 +104,3 @@ p = x.flatten().copy()
 
 m = np.array([1.0 for n in range(N)])
 plots.run_test(p, m, 'knot')
-
-
-p = np.load('p.npy').reshape(-1)
-m = np.array([1.0 for n in range(N)])
-N = p.shape[0]//3
-x = p.copy()
-plots.run_test(p, m, 'animation')
