@@ -1,9 +1,6 @@
 ##  Reposition - projection of chain-constrained points
 This is a generalization of the well-known projection of two 3d points in position based dynamics (PBD), to handle a $N$-point chain of connected points. One can use this projection completely analagous to the classic PBD projection, only in this case it applies to a chain of points. [try the demo here](https://silcowitz.github.io/reposition/)
 
-The solver c-code is a very basic
-[implementation](https://github.com/silcowitz/reposition/blob/master/solve.c) working on plain C arrays, compiled to wasm and rendered using [three.js](https://threejs.org/)
-
 The algorithm works by transforming the problem to only work on the $N-1$ normalized direction vectors of each link in the chain, and performing staggered newton-like steps on this formulation. Read the technical description [here.](https://silcowitz.github.io/reposition/solve.pdf)
 
 The main advantages of this are
@@ -19,3 +16,7 @@ The code in the repo is not super optimal, in particular it's a memory hog, and 
   2. can be easily compiled to web-assembly target
   3. can be used as a boiler-plate for more effecient implementations later on
   4. be easily compared to the python reference implementation
+
+The solver c-code is a very basic
+[implementation](https://github.com/silcowitz/reposition/blob/master/solve.c) working on plain C arrays, compiled to wasm and rendered using [three.js](https://threejs.org/)
+
