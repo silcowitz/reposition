@@ -1,6 +1,7 @@
 import "./style.css";
 import { useSolver } from "@root/reposition.js";
 import GUI from "lil-gui";
+import { encode, decode } from "@msgpack/msgpack";
 
 const N = 1024 * 16;
 const solver = await useSolver(N);
@@ -25,10 +26,14 @@ const conf = {
     beads: 2,
     fix: 0,
     N: 1024*8,
+    position_z: 234,
 };
 
 let single_step = true;
-function reset1() {
+
+
+
+function knot() {
     const S = 120;
     const a = 1;
     const b = Math.sqrt(2);
@@ -40,16 +45,110 @@ function reset1() {
         x[i * 3 + 0] = S * Math.sin(b * t);
         x[i * 3 + 2] = S * Math.sin(c * t);
         t += dt;
-        //m[i] =
-        //    i === 0 || i === N - 1 || i === N / 4 || i % (N / 4) === 0 ? 1 : 1;
     }
+
+    conf.N = 1024*16;
+    conf.beads = 2;
+    conf.max_iter= 25;
+    conf.tol_exp=-7;
+    conf.gravity=false;
+    conf.momentum=true;
+    conf.floor =true;
+    conf.mass_ratio= -3;
+    conf.fix =0;
 
     x0.set(x);
     p.set(x);
-    //single_step = true;
 }
 
-reset1();
+function helix() {
+    const S = -120;
+    const R = 1.0;      // radius
+    const P = 0.005;     // pitch (z increase per unit t)
+    const dt = 0.02;
+    let t = 0;
+
+    for (let i = 0; i < N; i++) {
+        x[i * 3 + 0] = S * P * t;
+        x[i * 3 + 1] = S * R * Math.sin(t);
+        x[i * 3 + 2] = S * R * Math.cos(t);
+        t += dt;
+    }
+
+    // Center around (0,0,0)
+    let cx = 0, cy = 0, cz = 0;
+    for (let i = 0; i < N; i++) {
+        cx += x[i * 3 + 0];
+        cy += x[i * 3 + 1];
+        cz += x[i * 3 + 2];
+    }
+    cx /= N; cy /= N; cz /= N;
+
+    for (let i = 0; i < N; i++) {
+        x[i * 3 + 0] -= cx;
+        x[i * 3 + 1] -= cy;
+        x[i * 3 + 2] -= cz;
+    }
+
+    conf.N = 1024 * 16;
+    conf.beads = 2;
+    conf.max_iter = 25;
+    conf.tol_exp = -7;
+    conf.gravity = false;
+    conf.momentum = false;
+    conf.floor = true;
+    conf.mass_ratio = -3;
+    conf.fix = 0;
+
+    x0.set(x);
+    p.set(x);
+}
+
+knot();
+
+
+//import demoUrl from "./demo.msgpack";
+//const demoBuffer = await fetch(demoUrl).then(r => r.arrayBuffer());
+
+function load(buffer) {
+    const demo = decode(buffer);
+    new Uint8Array(vertices.buffer).set(demo.vertices);
+    x.set(vertices)
+    p.set(vertices)
+    x0.set(vertices)
+    Object.assign( conf, demo.conf);
+}
+
+function save() {
+  name = 'demo'
+  const preset = {
+    version: 1,
+    conf,
+    vertices: vertices.slice(0,conf.N*3),
+  };
+  const bytes = encode(preset);
+  const blob = new Blob([bytes], {
+    type: "application/msgpack"
+  });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${name}.msgpack`;
+  a.click();
+}
+
+
+export const demoUrls = import.meta.glob("./presets/*.msgpack", {
+  eager: true,
+  as: "url",
+});
+
+const demos = Object.fromEntries(
+  Object.entries(demoUrls).map(([path, url]) => {
+    const name = path.replace("./presets/", "").replace(".msgpack", "");
+    return [name, url];
+  })
+);
+
 
 import {
     Scene,
@@ -85,7 +184,7 @@ const vertices = new Float32Array(N * 3);
 geometry.setPositions(vertices);
 
 const material = new LineMaterial({
-    color: 0xffff00,
+    //color: 0xffff00,
     linewidth: 2.3,
     vertexColors: true,
 });
@@ -100,12 +199,12 @@ const colors = new Float32Array(N * 3);
 for (let i = 0; i < N; i++) {
     if ((i / 2) % 2 === 0) {
         colors[i * 3 + 0] = 1;
-        colors[i * 3 + 1] = 1;
-        colors[i * 3 + 2] = 0;
-    } else {
-        colors[i * 3 + 0] = 1;
         colors[i * 3 + 1] = 0;
-        colors[i * 3 + 2] = 0;
+        colors[i * 3 + 2] = 1;
+    } else {
+        colors[i * 3 + 0] = 0;
+        colors[i * 3 + 1] = 0;
+        colors[i * 3 + 2] = 1;
     }
 }
 
@@ -114,7 +213,6 @@ geometry.setColors(colors);
 material.resolution.set(window.innerWidth, window.innerHeight);
 line.computeLineDistances();
 scene.add(line);
-camera.position.z = 234;
 
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -147,7 +245,8 @@ console.log(instancedMesh.instanceColor);
 
 window.addEventListener("wheel", (event) => {
     const scrollSpeed = 1.0;
-    camera.position.z += event.deltaY * scrollSpeed;
+    //camera.position.z += event.deltaY * scrollSpeed;
+    conf.position_z += event.deltaY * scrollSpeed;
 });
 
 window.addEventListener("pointermove", (event) => {
@@ -189,17 +288,33 @@ gui.domElement.style.right = "10px";
 gui.domElement.style.top = "auto";
 gui.domElement.style.width = "auto";
 
-gui.add({ reset: reset1 }, "reset");
-gui.add(conf, "N", 128, 1024 * 16, 1);
-gui.add(conf, "beads", 2, 16, 1);
-gui.add(conf, "fix", { "end-points": 0, between: 1 });
-gui.add(conf, "floor");
-gui.add(conf, "gravity");
-gui.add(conf, "momentum");
-gui.add(conf, "mass_ratio", -6, -1, 1).name("mass ratio exp");
-gui.add(conf, "tol_exp", -32, 0, 1);
-gui.add(conf, "max_iter", 1, 64, 1);
-gui.add(conf, "error", 0, 1).listen().disable().decimals(2).name("solve error");
+
+//gui.add({ save: save }, "save");
+gui.add({ knot: knot }, "knot");
+//gui.add({ helix }, "helix");
+//gui.add({ reset2: reset2 }, "reset2");
+
+Object.entries(demos).forEach(([name, url]) => {
+  console.log(name)
+  gui.add({ [name]: async () => {
+    const res = await fetch(url);
+    const buffer = await res.arrayBuffer();
+
+    load(buffer);
+  } }, name);
+});
+
+gui.add(conf, "N", 128, 1024 * 16, 1).listen();
+gui.add(conf, "beads", 2, 128, 1).listen();
+gui.add(conf, "fix", { "end-points": 0, "between": 1 }).listen();
+gui.add(conf, "floor").listen();
+gui.add(conf, "gravity").listen();
+gui.add(conf, "momentum").listen();
+gui.add(conf, "mass_ratio", -6, -1, 1).name("mass ratio exp").listen();
+gui.add(conf, "tol_exp", -32, 0, 1).listen();
+gui.add(conf, "max_iter", 1, 64, 1).listen();
+const err_disp = gui.add(conf, "error", 0, 1).listen().disable().decimals(2).name("solve error");
+err_disp.updateDisplay = function () {this.$input.value=Number(this.getValue()).toExponential(1);};
 gui.add(conf, "solveTime", 0, 5)
     .listen()
     .decimals(3)
@@ -210,6 +325,7 @@ gui.add(conf, "iters", 1, 64).listen().disable().name("solver iters");
 function animate() {
     requestAnimationFrame(animate);
 
+    camera.position.z = conf.position_z;
     grid.visible = conf.floor;
 
     function f(i, D, N) {

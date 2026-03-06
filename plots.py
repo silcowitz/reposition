@@ -19,25 +19,19 @@ def conv_plot(errors, times, name, max_ticks=10):
 
     ax.semilogy(k, errors, color='red', linestyle='-', marker=None)
     ax.set_xlabel('Iteration')
-    ax.set_ylabel('Error', color='red')
-    #ax.tick_params(axis='y', colors='red')
-
+    ax.set_ylabel('Error')
     tick_idx = np.unique(np.linspace(0, iters - 1, min(max_ticks, iters), dtype=int))
     tick_pos = k[tick_idx]
-
     ax.set_xticks(tick_pos)
-
     axt = ax.twiny()
     axt.set_xlim(ax.get_xlim())
     axt.set_xticks(tick_pos)
     axt.set_xticklabels([f'{times_ms[i]:.2f}' for i in tick_idx], color='white')
     axt.set_xlabel('ms elapsed', color='white')
     axt.tick_params(axis='x', colors='white', length=4)
-
     ax.grid(True, which='both', ls='-', alpha=0.6)
-
     fig.tight_layout()
-    fig.savefig(f'{name}.pdf', format='pdf',
+    fig.savefig(f'plots/{name}.pdf', format='pdf',
                 bbox_inches='tight', transparent=True)
 
 def point_plot(x0, x1, name):
@@ -82,7 +76,7 @@ def point_plot(x0, x1, name):
         color='grey',
         bounds=(xmin, xmax, ymin, ymax, zmin, zmax),
     )
-    plotter.screenshot(f"{name}.png")  # , window_size=(512*4, 512*4))
+    plotter.screenshot(f"plots/{name}.png")  # , window_size=(512*4, 512*4))
 
 
 def run_test(p, m, name):
@@ -105,9 +99,9 @@ def run_test(p, m, name):
     conv_plot(errors, times, name)
     idx = int(np.argmin(np.abs(errors-1e-13)))
     point_plot(x0, p, f'{name}_last')
-    with open(f'{name}.txt', 'w') as f:
+    with open(f'plots/{name}.txt', 'w') as f:
         brand_raw = get_cpu_info().get("brand_raw")
         cpu_name = f" running on {brand_raw}" if brand_raw else ""
         print(
-            f'N={N}, finished in {idx+1} iterations at e={errors[idx]:.2e} in {times[idx]*1000:.4f}ms{cpu_name}', file=f)
+            f'N={N}, finished in {idx+1} iterations at e={errors[idx]:.2e} in {times[idx]*1000:.4f} ms{cpu_name}', file=f)
 

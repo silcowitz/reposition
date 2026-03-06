@@ -1,0 +1,14 @@
+build/
+build-wasm/
+node_modules/
+__pycache__/
+env/
+dist/
+public/*
+*.swp
+.DS_Store
+.cache
+.local
+.npm
+*.log
+*.aux

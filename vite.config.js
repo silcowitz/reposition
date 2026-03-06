@@ -9,6 +9,7 @@ export default defineConfig({
       "@root": path.resolve(__dirname, "./")
     }
   },
+  assetsInclude: ["./presets/*.msgpack"],
   server: {
     fs: {
       allow: ['..']

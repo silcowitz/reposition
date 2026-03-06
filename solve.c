@@ -503,7 +503,14 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
             norm(M * 3, rhs, &e);
             scalar bz_norm;
             norm(M * 3, bz, &bz_norm);
-            e = e / (bz_norm+ 1e-16);
+            scalar bl_norm;
+            norm(M * 3, bl, &bl_norm);
+            scalar Rp_norm;
+            norm(M * 3, Rp, &Rp_norm);
+
+            e = e / Rp_norm;
+
+
 
             // store time and error reporting
             int offset = j*2+3;

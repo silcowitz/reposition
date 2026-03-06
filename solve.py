@@ -27,15 +27,15 @@ def setup(m):
 
 
 def solve(p, Mi, R, L2, maxiter=8, pre_z=None, tol=1e-15):
-    p_mean = np.mean(p.reshape(-1,3), axis=0)
-    p_mean = np.tile(p_mean, p.size // 3).reshape(p.shape)*0
+    #p_mean = np.mean(p.reshape(-1,3), axis=0)
+    #p_mean = np.tile(p_mean, p.size // 3).reshape(p.shape)*0
     N=p.shape[0]
     #print(p_mean)
-    p -= p_mean
-    sc = np.linalg.norm(p)
-    sc=1
-    print(f'sc={sc}')
-    p /= sc
+    #p -= p_mean
+    #sc = np.linalg.norm(p)
+    #sc=1
+    #print(f'sc={sc}')
+    #p /= sc
     L = (len(p)//3) - 1
     if not pre_z is None:
         z = pre_z
@@ -52,7 +52,7 @@ def solve(p, Mi, R, L2, maxiter=8, pre_z=None, tol=1e-15):
             zi = np.zeros((3, 1))
             zi[:] = z[j*3:(j+1)*3]
             zi /= np.linalg.norm(zi)
-            zi /= sc
+            #zi /= sc
             z[j*3:(j+1)*3] = zi
             Q[j, j*3:(j+1)*3] = zi.T
 
@@ -69,15 +69,15 @@ def solve(p, Mi, R, L2, maxiter=8, pre_z=None, tol=1e-15):
         bl_rms = norm(bl)/np.sqrt(N)
         e_rms = norm(bz-bl)/np.sqrt(N)
         #e = e_rms / max(1, bz_rms, bl_rms)
-        e = norm(bz-bl) / (1e-16 + norm(bz))
+        e = norm(bz-bl) / norm(R.dot(p))
         #e = np.linalg.norm(bz-bl)**2
-        print(f'e={e}')
+        #print(f'e={e}')
         if ((e < tol or i == maxiter-1) and i != 0):
-            print(f"solve_power converged at iter {i} with {e}")
+            #print(f"solve_power converged at iter {i} with {e}")
             # get back to x
             s = np.linalg.solve(L2.T, bz)
             x = p-Mi.dot(R.T.dot(s))
-            return x*sc+p_mean, z*sc
+            return x, z
 
         # newton step
         dz = L2.dot(np.linalg.solve(1*np.eye(L*3) +

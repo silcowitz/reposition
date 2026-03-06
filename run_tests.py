@@ -2,7 +2,9 @@ import numpy as np
 from scipy.integrate import solve_ivp
 import plots
 
-#lorenz
+# lorenz
+
+
 def lorenz(t, state, sigma=10.0, rho=28.0, beta=8.0/3.0):
     x, y, z = state
     return [
@@ -10,6 +12,8 @@ def lorenz(t, state, sigma=10.0, rho=28.0, beta=8.0/3.0):
         x * (rho - z) - y,
         x * y - beta * z
     ]
+
+
 t0, t1 = 0.0, 40.0
 N = 1024*32
 t_eval = np.linspace(t0, t1, N)
@@ -23,7 +27,7 @@ points *= 52
 p = points.flatten()
 N = p.shape[0]//3
 m = np.array([1.0 for n in range(N)])
-plots.run_test( p, m, 'lorenz')
+plots.run_test(p, m, 'lorenz')
 
 
 # helix
@@ -38,6 +42,7 @@ def generate_helix_points(points_per_cycle, num_cycles, radius=8, height_per_cyc
         points.append((x, y, z))
     return np.array(points).flatten()
 
+
 points_per_cycle = 16
 num_cycles = 4
 p = generate_helix_points(points_per_cycle, num_cycles)
@@ -46,6 +51,8 @@ m = np.array([1.0 for n in range(N)])
 plots.run_test(p, m, 'helix')
 
 # circle
+
+
 def generate_closing_ellipse_points(num_points, a=12.0, b=6.0, z_step=0.2):
     points = []
     for i in range(num_points):
@@ -55,8 +62,10 @@ def generate_closing_ellipse_points(num_points, a=12.0, b=6.0, z_step=0.2):
         z = z_step * i * 0.0
         points.append((x, y, z))
     return np.array(points).flatten()
+
+
 num_points = 32
-p = generate_closing_ellipse_points(num_points, a=8,b=8)
+p = generate_closing_ellipse_points(num_points, a=8, b=8)
 m = np.array([1.0 for n in range(N)])
 plots.run_test(p, m, 'circle')
 
@@ -64,7 +73,7 @@ plots.run_test(p, m, 'circle')
 # knot
 
 # Constants
-D=15
+D = 15
 A = 1.0*D
 B = 1.0*D
 C = 1.0*D
@@ -77,7 +86,7 @@ c = np.pi
 dt = 0.04
 
 # Number of particles
-N = 1024*2 # set this to whatever you need
+N = 1024*2  # set this to whatever you need
 
 # Time array
 t = np.arange(N) * dt
@@ -94,12 +103,11 @@ x[:, 2] = C * np.sin(c * t)
 p = x.flatten().copy()
 
 m = np.array([1.0 for n in range(N)])
-plots.run_test( p, m, 'knot')
+plots.run_test(p, m, 'knot')
 
 
 p = np.load('p.npy').reshape(-1)
 m = np.array([1.0 for n in range(N)])
 N = p.shape[0]//3
 x = p.copy()
-plots.run_test( p, m, 'animation')
-
+plots.run_test(p, m, 'animation')

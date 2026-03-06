@@ -5,7 +5,6 @@ set(EXEC_NAME reposition_exec)
 set(Python_FIND_VIRTUALENV ONLY)
 find_package(Python COMPONENTS Interpreter Development)
 
-
 if(EMSCRIPTEN)
     add_executable(reposition_wasm solve.c)
     #target_compile_options(reposition_wasm PRIVATE -O3)
@@ -17,48 +16,50 @@ if(EMSCRIPTEN)
         "-sALLOW_MEMORY_GROWTH=1"
         "-sSTACK_SIZE=16mb"
         "-sEXPORT_ES6"
-        "-sENVIRONMENT=web"
+        "-sENVIRONMENT=node,web"
         "-sEXPORT_NAME=${LIB_NAME}"
     )
-
 else()
+    add_executable(${EXEC_NAME} solve.c)
+    target_link_libraries(${EXEC_NAME} PRIVATE m)
+    option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+    if(ENABLE_ASAN)
+        target_compile_options(${EXEC_NAME} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+        target_link_options(${EXEC_NAME} PRIVATE -fsanitize=address)
+    endif()
+    option(ENABLE_MSAN "Enable MemorySanitizer" OFF)
+    if(ENABLE_MSAN)
+        target_compile_options(${EXEC_NAME} PRIVATE -fsanitize=memory -fno-omit-frame-pointer)
+        target_link_options(${EXEC_NAME} PRIVATE -fsanitize=memory)
+    endif()
 
+    if(Python_FOUND)
+        execute_process(
+            COMMAND ${Python_EXECUTABLE} -c
+                    "import numpy; print(numpy.get_include())"
+            OUTPUT_VARIABLE NUMPY_INCLUDE
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
 
-add_executable(${EXEC_NAME} solve.c)
-target_link_libraries(${EXEC_NAME} PRIVATE m)
-option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
-if(ENABLE_ASAN)
-    target_compile_options(${EXEC_NAME} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-    target_link_options(${EXEC_NAME} PRIVATE -fsanitize=address)
-endif()
+        add_custom_command(
+            OUTPUT ${CMAKE_BINARY_DIR}/${LIB_NAME}.c
+            COMMAND ${Python_EXECUTABLE} -m cython
+                --module-name ${LIB_NAME}
+                ${CMAKE_SOURCE_DIR}/solve.pyx
+                -o ${CMAKE_BINARY_DIR}/${LIB_NAME}.c
+            DEPENDS ${CMAKE_SOURCE_DIR}/solve.pyx
+        )
 
-if(Python_FOUND)
-    execute_process(
-        COMMAND ${Python_EXECUTABLE} -c
-                "import numpy; print(numpy.get_include())"
-        OUTPUT_VARIABLE NUMPY_INCLUDE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+        add_library(${LIB_NAME} MODULE solve.c ${CMAKE_BINARY_DIR}/${LIB_NAME}.c)
+        target_include_directories(${LIB_NAME} PRIVATE ${Python_INCLUDE_DIRS})
+        target_include_directories(${LIB_NAME} PRIVATE ${NUMPY_INCLUDE})
+        target_include_directories(${LIB_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
+        target_link_libraries(${LIB_NAME} PRIVATE ${Python_LIBRARIES} m)
 
-    add_custom_command(
-        OUTPUT ${CMAKE_BINARY_DIR}/${LIB_NAME}.c
-        COMMAND ${Python_EXECUTABLE} -m cython
-            --module-name ${LIB_NAME}
-            ${CMAKE_SOURCE_DIR}/solve.pyx
-            -o ${CMAKE_BINARY_DIR}/${LIB_NAME}.c
-        DEPENDS ${CMAKE_SOURCE_DIR}/solve.pyx
-    )
-
-    add_library(${LIB_NAME} MODULE solve.c ${CMAKE_BINARY_DIR}/${LIB_NAME}.c)
-    target_include_directories(${LIB_NAME} PRIVATE ${Python_INCLUDE_DIRS})
-    target_include_directories(${LIB_NAME} PRIVATE ${NUMPY_INCLUDE})
-    target_include_directories(${LIB_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
-    target_link_libraries(${LIB_NAME} PRIVATE ${Python_LIBRARIES} m)
-
-    set_target_properties(${LIB_NAME} PROPERTIES
-        PREFIX "${Python_MODULE_PREFIX}"
-        SUFFIX ".${Python_SOABI}${CMAKE_SHARED_MODULE_SUFFIX}"
-    )
-endif()
+        set_target_properties(${LIB_NAME} PROPERTIES
+            PREFIX "${Python_MODULE_PREFIX}"
+            SUFFIX ".${Python_SOABI}${CMAKE_SHARED_MODULE_SUFFIX}"
+        )
+    endif()
 endif()
 

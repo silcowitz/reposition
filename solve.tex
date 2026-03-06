@@ -50,13 +50,13 @@
   \textbf{#2}\par
   \begin{subfigure}{0.48\columnwidth}
     \centering
-    \includegraphics[width=\linewidth]{#1_00.png}
+    \includegraphics[width=\linewidth]{plots/#1_00.png}
     \caption{Iteration 0}
   \end{subfigure}
   \hfill
   \begin{subfigure}{0.48\columnwidth}
     \centering
-    \includegraphics[width=\linewidth]{#1_01.png}
+    \includegraphics[width=\linewidth]{plots/#1_01.png}
     \caption{Iteration 1}
   \end{subfigure}
 
@@ -64,19 +64,19 @@
 
   \begin{subfigure}{0.48\columnwidth}
     \centering
-    \includegraphics[width=\linewidth]{#1_last.png}
+    \includegraphics[width=\linewidth]{plots/#1_last.png}
     \caption{Last iteration}
   \end{subfigure}
   \hfill
   \begin{subfigure}{0.48\columnwidth}
     \centering
-    \includegraphics[width=\linewidth]{#1.pdf}
+    \includegraphics[width=\linewidth]{plots/#1.pdf}
     \caption{Convergence}
   \end{subfigure}
 
   \caption[#2]{The blue curve shows the target positions, while the red curve
   shows the solution positions. The points are rendered as a continuous curves
-  for better visualization. \filecaption{#1.txt}}
+  for better visualization. \filecaption{plots/#1.txt}}
 \end{figure}
 }
 % In preamble:
@@ -302,7 +302,7 @@ while true do
     $\vv \lambda$ = solve($\vv{QSQ^{\T}}$, $\vv{Qy}$)
     $\vv{b_z}$ = solve($\vv L$, $\vv{y}$)
     $\vv{b_\lambda}$ = $\vv{L^{\T}Q^{\T}\lambda} $
-    if $\frac{\|\vv{b_z-b_\lambda}\|}{\|\vv{b_z}+\epsilon\|}<\epsilon_{tol}$ then
+    if $\frac{\|\vv{b_z-b_\lambda}\|}{\|\vv{R p}\|}<\epsilon_{tol}$ then
         $\vv s$ = solve($\vv{L^{\T}}$, $\vv{b_z}$)
         $\vv x$ = $\vv{p-M^{-1}R^{\T}s}$
         return $\vv x$
