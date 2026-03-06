@@ -1,3 +1,5 @@
+![Demo](demo.gif)
+
 ##  Reposition - projection of chain-constrained points
 This is a generalization of the well-known projection of two 3d points in position based dynamics (PBD), to handle a $N$-point chain of connected points. One can use this projection completely analagous to the classic PBD projection, only in this case it applies to a chain of points. [try the demo here](https://silcowitz.github.io/reposition/)
 
