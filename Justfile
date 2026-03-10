@@ -23,4 +23,4 @@ vite-build: build-wasm
 deploy: vite-build docs
 	pnpm run deploy
 
-all: build sanity plots docs build-wasm vite-build deploy
+all: build sanity plots docs build-wasm vite-build
