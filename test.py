@@ -12,14 +12,13 @@ def spiral(num_points, spacing=2.5, height_increment=0.15):
         y = r * np.sin(theta)
         z = i*height_increment
         points.append((x, y, z))
-    return np.array(points).flatten()
+    return np.array(points,dtype=np.float64).flatten()
 
 p = spiral(128)
-
-x0 = p*1.0
+x0 = p.copy()
 N = p.shape[0]//3
-m = np.array([1.0 for n in range(N)])
-stats = np.zeros(8)
+m = np.array([1.0 for n in range(N)], dtype=np.float64)
+stats = np.zeros(8, dtype=np.float64)
 
 reposition.solve2(1e-12, 64, p, m, x0, stats)
 #print(stats)
@@ -37,12 +36,3 @@ if err < 1e-11:
 else:
     print(f"{RED}[FAILED]{RESET}")
     exit(-1)
-
-
-
-
-
-
-
-
-
