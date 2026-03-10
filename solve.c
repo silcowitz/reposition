@@ -1,5 +1,4 @@
 #include "solve.h"
-
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -22,7 +21,7 @@ static inline double wtime(void) {
  *
  * Returns 0 on success, -1 if A is not SPD.
  */
-int sym_tridiag_solve(int n, const scalar* Ad, const scalar* Al,
+static inline int sym_tridiag_solve(int n, const scalar* Ad, const scalar* Al,
                       const scalar* b, scalar* x)  // allowed buffer
 {
     if (n <= 0) return -1;
@@ -70,7 +69,7 @@ int sym_tridiag_solve(int n, const scalar* Ad, const scalar* Al,
  *
  * Returns 0 on success, -1 on zero/invalid pivot.
  */
-int sym_tridiag_block_solve_direct(int n, int bs, const scalar* Ad,
+static inline int sym_tridiag_block_solve_direct(int n, int bs, const scalar* Ad,
                                    const scalar* Al, const scalar* B,
                                    scalar* X) {
     //const scalar eps = 1.0e-7;
@@ -125,7 +124,7 @@ int sym_tridiag_block_solve_direct(int n, int bs, const scalar* Ad,
  *
  * B, X: vectors of length n*bs
  */
-void lower_bidiag_block_solve(int n, int bs, const scalar* Ld, const scalar* Ll,
+static inline void lower_bidiag_block_solve(int n, int bs, const scalar* Ld, const scalar* Ll,
                               const scalar* B, scalar* X) {
     /* first block */
     scalar inv = 1.0 / Ld[0];
@@ -144,7 +143,7 @@ void lower_bidiag_block_solve(int n, int bs, const scalar* Ld, const scalar* Ll,
 }
 
 /* Solve L^T X = B */
-void upper_bidiag_block_solve(int n, int bs, const scalar* Ld, const scalar* Ll,
+static inline void upper_bidiag_block_solve(int n, int bs, const scalar* Ld, const scalar* Ll,
                               const scalar* B, scalar* X) {
     /* last block */
     scalar inv = 1.0 / Ld[n - 1];
@@ -168,7 +167,7 @@ void upper_bidiag_block_solve(int n, int bs, const scalar* Ld, const scalar* Ll,
  * L: lower bidiagonal, block-identity
  * x,y: vectors of length n*bs
  */
-void lower_bidiag_block_mul(int n, int bs, const scalar* Ld, const scalar* Ll,
+static inline void lower_bidiag_block_mul(int n, int bs, const scalar* Ld, const scalar* Ll,
                             const scalar* x, scalar* y) {
     /* first block */
     for (int k = 0; k < bs; k++) y[k] = Ld[0] * x[k];
@@ -188,7 +187,7 @@ void lower_bidiag_block_mul(int n, int bs, const scalar* Ld, const scalar* Ll,
  *
  * L: lower bidiagonal, block-identity
  */
-void upper_bidiag_block_mul(int n, int bs, const scalar* Ld, const scalar* Ll,
+static inline void upper_bidiag_block_mul(int n, int bs, const scalar* Ld, const scalar* Ll,
                             const scalar* x, scalar* y) {
     /* last block */
     int off = (n - 1) * bs;
@@ -205,7 +204,7 @@ void upper_bidiag_block_mul(int n, int bs, const scalar* Ld, const scalar* Ll,
     }
 }
 
-void normalize_q(int n, int bs, scalar* q) {
+static inline void normalize_q(int n, int bs, scalar* q) {
     int i, k;
     for (i = 0; i < n; i++) {
         scalar norm = 0.0;
@@ -222,13 +221,13 @@ void normalize_q(int n, int bs, scalar* q) {
     }
 }
 
-static scalar dot(int bs, const scalar* x, const scalar* y) {
+static inline scalar dot(int bs, const scalar* x, const scalar* y) {
     scalar s = 0.0;
     for (int k = 0; k < bs; k++) s += x[k] * y[k];
     return s;
 }
 
-void q_dots(int n, int bs, const scalar* q, scalar* v, /* size n * bs */
+static inline void q_dots(int n, int bs, const scalar* q, scalar* v, /* size n * bs */
             scalar* out)                               /* size n */
 {
     for (int i = 0; i < n; i++) {
@@ -236,7 +235,7 @@ void q_dots(int n, int bs, const scalar* q, scalar* v, /* size n * bs */
     }
 }
 
-void q_products(int n, int bs, const scalar* q, scalar* v, /* size n  */
+static inline void q_products(int n, int bs, const scalar* q, scalar* v, /* size n  */
                 scalar* out)                               /* size n * bs */
 {
     for (int i = 0; i < n; i++) {
@@ -255,7 +254,7 @@ void q_products(int n, int bs, const scalar* q, scalar* v, /* size n  */
  * - Mdiag[0..n-1]
  * - Msub[1..n-1] (Msub[i] = M[i,i-1]); symmetric => Msup[i-1] = Msub[i]
  */
-void form_QT_A_Q_tridiag(int n, int bs,
+static inline void form_QT_A_Q_tridiag(int n, int bs,
                          const scalar* Asub,  /* size n, use indices 1..n-1 */
                          const scalar* Adiag, /* size n */
                          const scalar* q,     /* size n*bs */
@@ -275,7 +274,6 @@ void form_QT_A_Q_tridiag(int n, int bs,
     }
 }
 
-#include <math.h>
 
 /* Compute L such that A = L L^T
  *
@@ -289,7 +287,7 @@ void form_QT_A_Q_tridiag(int n, int bs,
  *
  * Returns 0 on success, -1 if A is not SPD.
  */
-int cholesky(int n, const scalar* Ad, const scalar* Al, scalar* Ld,
+static inline int cholesky(int n, const scalar* Ad, const scalar* Al, scalar* Ld,
              scalar* Ll) {
     if (n <= 0) return -1;
     if (Ad[0] <= 0.0) return -1;
@@ -308,7 +306,7 @@ int cholesky(int n, const scalar* Ad, const scalar* Al, scalar* Ld,
     return 0;
 }
 
-void D1_LTD2L_2(int n, const scalar* Ld, const scalar* Ll, const scalar* D1,
+static inline void D1_LTD2L_2(int n, const scalar* Ld, const scalar* Ll, const scalar* D1,
                 const scalar* D2, scalar* Ad, scalar* Al) {
     /* first row */
     Al[0] = 0;
@@ -336,57 +334,58 @@ void D1_LTD2L_2(int n, const scalar* Ld, const scalar* Ll, const scalar* D1,
     }
 }
 
-void trace(int n, const scalar* p, const char* name) {
-    if (0)
-        for (int i = n - 5; i < n; i++) {
+static inline void trace(int n, const scalar* p, const char* name) {
+#if 0
+        for (int i = 0; i < n; i++) {
             printf("%s[%d] = %1.6f\n", name, i, p[i]);
         }
+#endif
 }
 
-void set(int n, scalar* p, const scalar v) {
+static inline void set(int n, scalar* p, const scalar v) {
     for (int i = 0; i < n; i++) {
         p[i] = v;
     }
 }
 
-void sum(int n, const scalar* p, const scalar* p2, scalar* v) {
+static inline void sum(int n, const scalar* p, const scalar* p2, scalar* v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] + p2[i];
     }
 }
 
-void sub(int n, const scalar* p, const scalar* p2, scalar* v) {
+static inline void sub(int n, const scalar* p, const scalar* p2, scalar* v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] - p2[i];
     }
 }
 
-void mul(int n, const scalar* p, const scalar* p2, scalar* v) {
+static inline void mul(int n, const scalar* p, const scalar* p2, scalar* v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] * p2[i];
     }
 }
 
-void div(int n, const scalar* p, const scalar* p2, scalar* v) {
+static inline void div2(int n, const scalar* p, const scalar* p2, scalar* v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] / p2[i];
     }
 }
 
-void max(int n, const scalar* p, const scalar m, scalar* v) {
+static inline void max(int n, const scalar* p, const scalar m, scalar* v) {
     for (int i = 0; i < n; i++) {
         v[i] = p[i] > m ? p[i] : m;
     }
 }
 
-void squared_norm(int n, const scalar* p, scalar* v) {
+static inline void squared_norm(int n, const scalar* p, scalar* v) {
     *v = 0;
     for (int i = 0; i < n; i++) {
         *v += p[i] * p[i];
     }
 }
 
-void norm(int n, const scalar* p, scalar* v) {
+static inline void norm(int n, const scalar* p, scalar* v) {
     squared_norm(n,p,v);
     *v = sqrtf(*v);
 }
@@ -396,9 +395,9 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
     double t0 = wtime();
     const int M = N - 1;
     scalar zero[N * 3];
-    memset(&zero[0], 1, sizeof(zero));
+    set(N * 3, &zero[0], 0);
     scalar ones[N * 3];
-    set(N * 3, ones, 1);
+    set(N * 3, &ones[0], 1);
 
     // R
     scalar Rd[N];
@@ -409,7 +408,7 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
 
     // M inv
     scalar Md[N];
-    div(N, ones, m, Md);
+    div2(N, ones, m, Md);
     // Md[0] = 1;
     // Md[N - 1] = 1;
     //  trace(N, Md, "Md");
@@ -420,18 +419,16 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
 
     // A = R M RT
     sum(M, Md, &Md[1], Ad);
+    Au[0] = 0;
     sub(M - 1, zero, &Md[1], &Au[1]);
-
-    // trace(N, Ad, "A diag" );
-    // trace(N, Au, "A upper" );
 
     scalar Ld[M];
     scalar Ll[M];
 
-    int r = cholesky(M, Ad, Au, Ld, Ll);
-    // printf("chol = %d\n", r);
-
-    // trace(M, Ld, "L diag" );
+    if( cholesky(M, Ad, Au, Ld, Ll) < 0) {
+        printf("cholesky failed\n");
+        return -1;
+    }
     // trace(M, Ll, "L lower" );
 
     // z = Rp
@@ -518,7 +515,7 @@ scalar solve(const int N, scalar tol, int max_iter, const scalar* p,
                 stats[offset] = e;
                 stats[offset+1] = wtime()-t0;
             }
-            //printf("e=%f\n", e);
+            // printf("e=%e\n", e);
 
             // exit
             if (e < tol || j >= max_iter) {
