@@ -17,7 +17,8 @@ build-wasm:
 	rm -rf build-wasm && emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release && cmake --build build-wasm
 
 vite-build: build-wasm
-	pnpm run build
+  pnpm install
+  pnpm run build
 
 deploy: vite-build docs
 	pnpm run deploy
