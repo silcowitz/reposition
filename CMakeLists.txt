@@ -55,7 +55,7 @@ else()
         target_include_directories(${LIB_NAME} PRIVATE ${NUMPY_INCLUDE})
         target_include_directories(${LIB_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
         target_link_libraries(${LIB_NAME} PRIVATE ${Python_LIBRARIES} m)
-
+        target_compile_options(${LIB_NAME} PRIVATE -fvisibility=hidden )
         set_target_properties(${LIB_NAME} PROPERTIES
             PREFIX "${Python_MODULE_PREFIX}"
             SUFFIX ".${Python_SOABI}${CMAKE_SHARED_MODULE_SUFFIX}"
