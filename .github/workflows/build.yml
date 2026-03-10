@@ -46,8 +46,10 @@ jobs:
       - name: Run pipeline
         run: just all
 
+      - name: Upload
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
       - name: Deploy
-        - uses: actions/upload-pages-artifact@v3
-          with:
-            path: dist
-        - uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v4
