@@ -66,7 +66,7 @@ def generate_closing_ellipse_points(num_points, a=12.0, b=6.0, z_step=0.2):
 
 num_points = 32
 p = generate_closing_ellipse_points(num_points, a=8, b=8)
-m = np.array([1.0 for n in range(N)])
+m = np.array([1.0 for n in range(num_points)])
 plots.run_test(p, m, 'circle')
 
 
