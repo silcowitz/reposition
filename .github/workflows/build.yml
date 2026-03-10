@@ -40,5 +40,8 @@ jobs:
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v14
 
+      - name: Setup headless display
+        uses: pyvista/setup-headless-display-action@v3
+
       - name: Run pipeline
         run: just all
