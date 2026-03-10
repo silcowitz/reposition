@@ -216,7 +216,8 @@ scene.add(line);
 
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0x404040);
+renderer.setClearColor(0x404040,0);
+renderer.domElement.style.background = 'linear-gradient(180deg, #505050 0%, #202020 100%)';
 let play = true;
 
 const raycaster = new Raycaster();
@@ -238,7 +239,7 @@ instancedMesh.setColorAt(0, new Color(0xffffff));
 const dummy = new Object3D();
 scene.add(instancedMesh);
 const floor = -150;
-const grid = new GridHelper(1024, 16 * 4, 0x7f7f7f, 0x7f7f7f);
+const grid = new GridHelper(1024*2, 16 * 2, 0x7f7f7f, 0x7f7f7f);
 grid.position.y = floor;
 scene.add(grid);
 console.log(instancedMesh.instanceColor);
