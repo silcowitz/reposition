@@ -280,8 +280,13 @@ renderer.domElement.addEventListener("pointerup", (event) => {
 });
 
 const gui = new GUI({
-    title: "Stats",
+    title: "Settings",
 });
+
+if (window.matchMedia("(orientation: portrait)").matches) {
+  gui.close(); // start minimized on vertical/mobile screens
+}
+
 
 gui.domElement.style.position = "fixed";
 gui.domElement.style.bottom = "10px";
