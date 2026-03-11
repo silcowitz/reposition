@@ -1,5 +1,5 @@
 \documentclass[14pt]{extarticle}
-    \title{Projecting chains of distance constrained points}
+    \title{Projecting chains of distance-constrained points}
     \author{Morten Silcowitz}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -136,9 +136,9 @@ solving for $\vv \lambda$ gives us:
 \end{align*}
 where $\vv S = \vv R \vv M^{-1} \vv R^{\T} \in \mathbb R^{3m \times 3m}$ is a
 block tridiagonal SPD matrix. We use this to give us an expression for $\vv x$:
-\begin{align*}
-\vv x = \vv p + \vv M^{-1}\vv R^{\T} \vv S^{-1}(\vv z - \vv R\vv p)
-\end{align*}
+\begin{align}
+\vv x = \vv p + \vv M^{-1}\vv R^{\T} \vv S^{-1}(\vv z - \vv R\vv p) \label{eq:ztox}
+\end{align}
 Inserting this into \eqref{eq:orig} eliminates $\mathbf z = \mathbf R \mathbf x
 $ and we are left with
 \begin{align}
@@ -149,15 +149,15 @@ $ and we are left with
 In this reformulated problem we must find a $\vv z$ that consists of unit length
 3-vectors that minimize the distance to $\vv{Rp}$ under the $\vv S^{-1}$-norm.
 Note that it is trivial to project $\vv z$ to satisfy the unit length
-constraints (under the regular $\vv I$-norm, known as normalization), and
-likewise it is trivial to
-obtain $\vv x$ given any $\vv z$.
+constraints (under the regular $\vv I$-norm, known as normalization).
 This means that whenever we take a Newton step on $\vv z$ we can trivially rein
 it to its feasible solution, and in effect only change the directions of
 each $\vv z_i$ vector, never their lengths. Throughout, $\vv M$, $\vv R$,
 $\vv S$, and $\vv p$ are fixed inputs; $\vv z$ is the variable we iterate, and
-$\vv \lambda$ is re-estimated each loop.
-\section{Solution}
+$\vv \lambda$ is re-estimated each loop. Once we have a solution for $\vv z$ we
+can obtain $\vv x$ using \eqref{eq:ztox}, which is the solution to \eqref{eq:orig}
+for a give value of $\vv z$. \section{Solution}
+
 We want to solve this system using a Newton-like method, so to make sense of
 that we first derive the full Newton step. The Lagrangian of \eqref{eq:main} is
 \begin{align}
