@@ -156,7 +156,7 @@ each $\vv z_i$ vector, never their lengths. Throughout, $\vv M$, $\vv R$,
 $\vv S$, and $\vv p$ are fixed inputs; $\vv z$ is the variable we iterate, and
 $\vv \lambda$ is re-estimated each loop. Once we have a solution for $\vv z$ we
 can obtain $\vv x$ using \eqref{eq:ztox}, which is the solution to \eqref{eq:orig}
-for a give value of $\vv z$. \section{Solution}
+for a given value of $\vv z$. \section{Solution}
 
 We want to solve this system using a Newton-like method, so to make sense of
 that we first derive the full Newton step. The Lagrangian of \eqref{eq:main} is
@@ -254,7 +254,7 @@ first row of \eqref{eq:newton}:
 \label{eq:solve_z}
 \end{align}
 To avoid having to solve the dense system $\vv{S^{-1}+D_\lambda}$ we exploit
-that we can cheaply compute the cholesky decomposition $\vv{ LL^{\T} = S}$ and
+that we can cheaply compute the Cholesky decomposition $\vv{ LL^{\T} = S}$ and
 make use of the identity
 \begin{align}
 \vv{S^{-1} + D_\lambda = L^{-T} (I + L^T D_\lambda L) L^{-1}} \label{eq:ident}
@@ -320,7 +320,7 @@ Each iteration the algorithm does these main steps:
 \end{enumerate}
 Note the following:
 \begin{itemize}
-    \item we precompute the Cholesky factor $\vv{LL^{\T}=S}$ once if $\vv M$ is
+    \item we pre-compute the Cholesky factor $\vv{LL^{\T}=S}$ once if $\vv M$ is
     fixed, and reuse it in every iteration to keep all solves sparse
     \item the sign convention is handled by setting $\vv y = \vv{Rp-z}$, so the
     Newton right-hand side becomes $\vv{b_z-b_\lambda}$ in the factored system
